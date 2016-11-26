@@ -1,0 +1,17 @@
+fileSystem:
+  image: fileSystem
+  environment:
+    # The start of active environment variables. Set as needed.
+    - MONGODB_IP=database
+    # - MONGODB_PORT
+    # - MONGODB_DATABASE=USE_HASKELL_DB
+    - LOG_LEVEL=DEBUG
+    # - https_proxy=http://www-proxy.scss.tcd.ie:8080
+    # - http_proxy=http://www-proxy.scss.tcd.ie:8080
+  command: /users/ugrad/loreidy/distroFS/fileSystem/fileSystem-exe
+  ports:
+    - "8080:8080"
+  links:
+    - database
+database:
+  image: mongo:3.0.2

@@ -1,0 +1,17 @@
+Configuring securemem-0.1.9...
+Building securemem-0.1.9...
+Preprocessing library securemem-0.1.9...
+[1 of 1] Compiling Data.SecureMem   ( Data/SecureMem.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Data/SecureMem.o )
+
+Data/SecureMem.hs:34:1: warning: [-Wunused-imports]
+    The import of ‘Data.Monoid’ is redundant
+      except perhaps to import instances from ‘Data.Monoid’
+    To import instances alone, use: import Data.Monoid()
+
+Data/SecureMem.hs:35:1: warning: [-Wunused-imports]
+    The import of ‘Control.Applicative’ is redundant
+      except perhaps to import instances from ‘Control.Applicative’
+    To import instances alone, use: import Control.Applicative()
+Installing library in
+/root/.stack/snapshots/x86_64-linux/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/securemem-0.1.9-AlUbMorzPNe4lwnV15ASIa
+Registering securemem-0.1.9...

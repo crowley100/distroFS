@@ -1,0 +1,16 @@
+Configuring appar-0.1.4...
+Building appar-0.1.4...
+Preprocessing library appar-0.1.4...
+[1 of 5] Compiling Text.Appar.Input ( Text/Appar/Input.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Text/Appar/Input.o )
+[2 of 5] Compiling Text.Appar.Parser ( Text/Appar/Parser.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Text/Appar/Parser.o )
+
+Text/Appar/Parser.hs:99:1: warning: [-Wredundant-constraints]
+    • Redundant constraint: Input inp
+    • In the type signature for:
+           parse :: Input inp => MkParser inp a -> inp -> Maybe a
+[3 of 5] Compiling Text.Appar.ByteString ( Text/Appar/ByteString.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Text/Appar/ByteString.o )
+[4 of 5] Compiling Text.Appar.LazyByteString ( Text/Appar/LazyByteString.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Text/Appar/LazyByteString.o )
+[5 of 5] Compiling Text.Appar.String ( Text/Appar/String.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Text/Appar/String.o )
+Installing library in
+/root/.stack/snapshots/x86_64-linux/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/appar-0.1.4-1in4Ewd8JBkAYDZSWXLSe0
+Registering appar-0.1.4...
