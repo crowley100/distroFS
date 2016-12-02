@@ -18,14 +18,14 @@
 resolver: lts-7.10
 
 docker:
-  enable: true # warning!
+  enable: false # warning!
 
-# stack image container
+# stack image container 
 image:
   container:
-    name: fileSystem
+    name: use-haskell-api
     base: fpco/stack-run
-
+    
 # User packages to be built.
 # Various formats can be used as shown in the example below.
 #
@@ -49,14 +49,10 @@ packages:
   - location:
       git: https://github.com/Palmik/bson-generic.git
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
-  - location:
-      git: https://esjmb@bitbucket.org/esjmb/use-haskell-api.git
-      commit: a0d9e66
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps: [servant-client-0.9.1.1, servant-0.9.1.1, servant-server-0.9.1.1, http-api-data-0.3.2]
-
 
 # Override default flag values for local packages and extra-deps
 flags: {}

@@ -38,19 +38,20 @@ import           System.Log.Handler           (setFormatter)
 import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
+import           fileSystemAPI
 
 -- client -> server
 data Login = Login { email :: String
                        , password :: String
                        } deriving (Generic, FromJSON, ToBSON, FromBSON)
-                       
+
 deriving instance FromBSON String  -- we need these as BSON does not provide
 deriving instance ToBSON   String
 
 -- server -> client
 data ResponseData = ResponseData { response :: String
                                  } deriving (Generic, ToJSON, FromJSON,FromBSON)
-                                 
+
 type API = "load_environment_variables" :> QueryParam "email" String :> Get '[JSON] ResponseData
       :<|> "getREADME"                  :> Get '[JSON] ResponseData
       :<|> "storeLogin"                 :> ReqBody '[JSON] Message  :> Post '[JSON] Bool
@@ -61,10 +62,10 @@ startServer :: IO () -- set up wai logger for service to output apache style log
 startServer = withLogging $ \ aplogger -> do
 
     warnLog "Starting fileSystem."
-    
+
     let settings = setPort 8080  setLogger aplogger defaultSettings
     runSettings settings app
-    
+
 -- 'serve' comes from servant and hands you a WAI Application,
 -- which you can think of as an "abstract" web application,
 -- not yet a webserver.
@@ -80,7 +81,7 @@ server = loadEnvironmentVariable
     :<|> storeLogin
     :<|> searchMessage
     :<|> performRESTCall
-    
+
     where
         loadEnvironmentVariable :: Maybe String -> Handler ResponseData
         loadEnvironmentVariable ms = liftIO $ do
@@ -100,10 +101,10 @@ server = loadEnvironmentVariable
                       -- Otherwise, return the envrionment variable. Note how variable names can use ', eg. x', x''
                       -- Haskell programmers often use this format for variables that are essentially referring to the same thing
                       Just e' -> return $ ResponseData e'
-        
+
         getREADME :: Handler ResponseData
         getREADME = liftIO $ ResponseData <$> (readFile . head =<< getArgs)
-        
+
         storeLogin :: Login -> Handler Bool
         storeLogin msg@(Login key _) = liftIO $ do
             warnLog $ "Storing message under key " ++ key ++ "."
@@ -114,27 +115,27 @@ server = loadEnvironmentVariable
             withMongoDbConnection $ upsert (select ["email" =: key] "LOGIN_RECORD") $ toBSON msg
 
             return True  -- as this is a simple demo I'm not checking anything
-          
+
         searchMessage :: Maybe String -> Handler [ResponseData]
         searchMessage (Just key) = liftIO $ do
             warnLog $ "Searching for value for key: " ++ key
             withMongoDbConnection $ do
                 docs <- find (select ["email" =: key] "LOGIN_RECORD") >>= drainCursor -- >>= chains fns
                 return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ResponseData) docs
-        
+
         searchMessage Nothing = liftIO $ do
             warnLog $ "No key for searching."
             return $ ([] :: [ResponseData])
-            
+
         performRESTCall :: Maybe String -> Handler ResponseData
         performRESTCall (Just filt) = liftIO $ do
             warnLog $ "recieved request to perform REST call with param " ++ filt
             doRest $ DL.filter (DL.isInfixOf filt)
-            
+
         performRESTCall Nothing = liftIO $ do
             warnLog $ "recieved request to perform REST call, but no param "
             doRest id
-            
+
         doRest :: ([String] -> [String]) -> IO ResponseData
         doRest flt = do
             -- first we perform the call to hackage.org, then we will extract the package names and filter
@@ -152,7 +153,7 @@ server = loadEnvironmentVariable
             where env = do
                  manager <- newManager defaultManagerSettings
                  return (SC.ClientEnv manager (SC.BaseUrl SC.Http "hackage.haskell.org" 80 ""))
-                 
+
 -- helper functions...
 -- | error stuff
 custom404Error msg = err404 { errBody = msg }
