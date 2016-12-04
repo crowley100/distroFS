@@ -22,10 +22,12 @@ restAPI = Proxy
 loadEnvVars :: Maybe String -> ClientM ResponseData
 getREADME :: ClientM ResponseData
 storeMessage :: Message -> ClientM Bool
+signUp :: Login -> ClientM Bool
+logIn :: Login -> ClientM Bool -- Maybe a return type here for token!
 searchMessage :: Maybe String -> ClientM [Message]
 performRestCall :: Maybe String -> ClientM ResponseData
 
 -- | The following provides the implementations of these types
 -- Note that the order of the functions must match the endpoints in the type API from UseHaskell.hs
 
-(loadEnvVars :<|> getREADME :<|> storeMessage :<|> searchMessage :<|> performRestCall) = client restAPI
+(loadEnvVars :<|> getREADME :<|> storeMessage :<|> signUp :<|> logIn :<|> searchMessage :<|> performRestCall) = client restAPI

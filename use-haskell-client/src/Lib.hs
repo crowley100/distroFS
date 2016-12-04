@@ -91,11 +91,19 @@ doGetREADME  = doCall getREADME
 doStoreMessage :: String -> String -> Maybe String -> Maybe String -> IO ()
 doStoreMessage n m  = doCall $ storeMessage $ Message n m
 
+doSignUp :: String -> String -> Maybe String -> Maybe String -> IO ()
+doSignUp n p = doCall $ signUp $ Login n p
+
+doLogIn :: String -> String -> Maybe String -> Maybe String -> IO () -- return token here instead ?
+doLogIn n p = doCall $ logIn $ Login n p
+
 doSearchMessage :: String -> Maybe String -> Maybe String -> IO ()
 doSearchMessage s  = doCall $ searchMessage $ Just s
 
 doPerformRestCall :: Maybe String -> Maybe String -> Maybe String -> IO ()
 doPerformRestCall s  =  doCall $ performRestCall s
+
+--doLogOut ::
 
 
 -- | The options handling
@@ -144,7 +152,25 @@ opts = do
                                                                   <> short 's'
                                                                   <> help "The search string for the hackage call."))
                                            <*> serverIpOption
-                                           <*> serverPortOption) "Do a hackage rest call from the remote server." )))
+                                           <*> serverPortOption) "Do a hackage rest call from the remote server." )
+                       <> command "sign-up"
+                                   (withInfo ( doSignUp
+                                           <$> argument str (metavar "UserName")
+                                           <*> argument str (metavar "Password")
+                                           <*> serverIpOption
+                                           <*> serverPortOption) "Sign user up to the remote server." )
+                       <> command "log-in"
+                                   (withInfo ( doLogIn
+                                           <$> argument str (metavar "UserName")
+                                           <*> argument str (metavar "Password")
+                                           <*> serverIpOption
+                                           <*> serverPortOption) "Logs user into the remote server." )))
+                      -- <> command "log-out"
+                        --           (withInfo ( doLogOut
+                          --                 <$> argument str (metavar "UserName")
+                            --               <*> argument str (metavar "Password")
+                              --             <*> serverIpOption
+                                --           <*> serverPortOption) "Logs user out of the remote server." )))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the use-haskell service." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++

@@ -24,6 +24,10 @@ import           Servant
 
 -- The relevant code is thus commented out here and the use-haskell-api library content is used instead
 
+data Login = Login { userName :: String
+                   , password :: String
+                   } deriving (Show, Generic, FromJSON, ToJSON, ToBSON, FromBSON)
+
 data Message = Message { name    :: String
                        , message :: String
                        } deriving (Show, Generic, FromJSON, ToJSON, ToBSON, FromBSON)
@@ -50,5 +54,7 @@ data ResponseData = ResponseData { response :: String
 type API = "load_environment_variables" :> QueryParam "name" String :> Get '[JSON] ResponseData
       :<|> "getREADME"                  :> Get '[JSON] ResponseData
       :<|> "storeMessage"               :> ReqBody '[JSON] Message  :> Post '[JSON] Bool
+      :<|> "signUp"                     :> ReqBody '[JSON] Login  :> Post '[JSON] Bool
+      :<|> "logIn"                      :> ReqBody '[JSON] Login  :> Post '[JSON] Bool
       :<|> "searchMessage"              :> QueryParam "name" String :> Get '[JSON] [Message]
       :<|> "performRESTCall"            :> QueryParam "filter" String  :> Get '[JSON] ResponseData
