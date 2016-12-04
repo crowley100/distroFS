@@ -1,0 +1,51 @@
+name:                use-haskell-client
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/esjmb/use-haskell-client#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Stephen Barrett
+maintainer:          Stephen.Barrett@tcd.ie
+copyright:           Copyright (C) 2016
+category:            test
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Lib
+  build-depends:       base >= 4.7 && < 5
+                     , servant
+                     , servant-client
+                     , http-client
+                     , optparse-applicative
+                     , use-haskell-api
+                     , cabal-file-th >= 0.2.4
+                     , pretty
+                     , Cabal
+                     , ansi-terminal
+                     , git-embed
+  default-language:    Haskell2010
+
+executable use-haskell-client-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , use-haskell-client
+  default-language:    Haskell2010
+
+test-suite use-haskell-client-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , use-haskell-client
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/esjmb/use-haskell-client
