@@ -21,6 +21,13 @@
   (major1) == 4 && (major2) <  9 || \
   (major1) == 4 && (major2) == 9 && (minor) <= 0)
 
+/* package bcrypt-0.0.10 */
+#define VERSION_bcrypt "0.0.10"
+#define MIN_VERSION_bcrypt(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  0 || \
+  (major1) == 0 && (major2) == 0 && (minor) <= 10)
+
 /* package bson-0.3.2.3 */
 #define VERSION_bson "0.3.2.3"
 #define MIN_VERSION_bson(major1,major2,minor) (\
@@ -203,7 +210,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "use-haskell-0.1.0.0-Kq2TIO93odr3gBAOwkBgn3"
+#define CURRENT_COMPONENT_ID "use-haskell-0.1.0.0-EmbXXic4tb6COg2doi7NGa"
 
-#define CURRENT_PACKAGE_KEY "use-haskell-0.1.0.0-Kq2TIO93odr3gBAOwkBgn3"
+#define CURRENT_PACKAGE_KEY "use-haskell-0.1.0.0-EmbXXic4tb6COg2doi7NGa"
 

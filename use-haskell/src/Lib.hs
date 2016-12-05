@@ -65,6 +65,8 @@ import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           UseHaskellAPI
+import           Crypto.BCrypt
+import qualified Data.ByteString.Char8        as BS
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -97,6 +99,8 @@ server :: Server API
 server = loadEnvironmentVariable
     :<|> getREADME
     :<|> storeMessage
+    :<|> logIn
+    :<|> signUp
     :<|> searchMessage
     :<|> performRESTCall
 
@@ -122,13 +126,41 @@ server = loadEnvironmentVariable
 
     storeMessage :: Message -> Handler Bool
     storeMessage msg@(Message key _) = liftIO $ do
-      warnLog $ "Storing message under key " ++ key ++ "."
-
+      warnLog $ "Storing message under key [" ++ key ++ "]."
       -- upsert creates a new record if the identified record does not exist, or if
       -- it does exist, it updates the record with the passed document content
       withMongoDbConnection $ upsert (select ["name" =: key] "MESSAGE_RECORD") $ toBSON msg
 
       return True  -- as this is a demo, not checking anything
+
+    signUp :: Login -> Handler Bool -- bool?
+    signUp val@(Login key _) = liftIO $ do
+      warnLog $ "Checking if user in db: " ++ key
+      withMongoDbConnection $ do
+        docs <- findOne (select ["userName" =: key] "USER_RECORD")
+        --let x = return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Login) docs
+        case docs of
+          Nothing -> liftIO $ do
+            -- hash pass first (pass comes in with auth server pub hash)
+            -- decrypt pass, use md5 hash on it and store
+            withMongoDbConnection $ upsert (select ["userName" =: key] "USER_RECORD") $ toBSON val
+            return True
+          Just _ -> return False
+
+    checkPass :: [String] -> String -> Bool
+    checkPass (hash:_) pass = validatePassword (BS.pack hash) (BS.pack pass)
+    checkpass _ _ = False
+
+    logIn :: Login -> Handler [ResponseData]
+    logIn val@(Login key pass) = liftIO $ do
+      warnLog $ "Logging user in: " ++ key
+      withMongoDbConnection $ do
+        docs <- find (select ["userName" =: key] "USER_RECORD") >>= drainCursor
+        let x = take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe String) docs
+            valid = checkPass x pass
+        case valid of
+          False -> return $ ((ResponseData $ "FAIL"):[])
+          True -> return $ ((ResponseData $ "WIN"):[])
 
     searchMessage :: Maybe String -> Handler [Message]
     searchMessage (Just key) = liftIO $ do
