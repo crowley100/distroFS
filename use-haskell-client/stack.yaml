@@ -21,12 +21,12 @@ resolver: lts-7.11
 docker:
   enable: false # warning!
 
-# stack image container 
+# stack image container
 image:
   container:
     name: use-haskell
     base: fpco/stack-run
-    
+
 # User packages to be built.
 # Various formats can be used as shown in the example below.
 #
@@ -52,7 +52,7 @@ packages:
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
   - location:
       git: https://github.com/crowley100/my_distro_API.git
-      commit: 7986f76cb639c34c03968b27af29a91f074b9ddd
+      commit: 8ba67e1b02705c068cf99cab15171701f5272ef0
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps: [git-embed-0.1.0,  github-0.15.0, cabal-file-th-0.2.4, servant-client-0.9.1.1, servant-0.9.1.1, servant-server-0.9.1.1, http-api-data-0.3.2]

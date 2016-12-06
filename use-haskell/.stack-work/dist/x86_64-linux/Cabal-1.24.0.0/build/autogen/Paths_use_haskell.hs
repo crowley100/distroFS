@@ -30,7 +30,7 @@ version = Version [0,1,0,0] []
 bindir, libdir, datadir, libexecdir, sysconfdir :: FilePath
 
 bindir     = "/home/lorcan/distroFS/use-haskell/.stack-work/install/x86_64-linux/lts-7.10/8.0.1/bin"
-libdir     = "/home/lorcan/distroFS/use-haskell/.stack-work/install/x86_64-linux/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/use-haskell-0.1.0.0-EmbXXic4tb6COg2doi7NGa"
+libdir     = "/home/lorcan/distroFS/use-haskell/.stack-work/install/x86_64-linux/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/use-haskell-0.1.0.0-DcpZhOecMVcKMHAOej22nq"
 datadir    = "/home/lorcan/distroFS/use-haskell/.stack-work/install/x86_64-linux/lts-7.10/8.0.1/share/x86_64-linux-ghc-8.0.1/use-haskell-0.1.0.0"
 libexecdir = "/home/lorcan/distroFS/use-haskell/.stack-work/install/x86_64-linux/lts-7.10/8.0.1/libexec"
 sysconfdir = "/home/lorcan/distroFS/use-haskell/.stack-work/install/x86_64-linux/lts-7.10/8.0.1/etc"

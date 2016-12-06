@@ -20,7 +20,7 @@ resolver: lts-7.10
 docker:
   enable: false # warning!
 
-# stack image container 
+# stack image container
 image:
   container:
     name: use-haskell
@@ -51,7 +51,7 @@ packages:
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
   - location:
       git: https://github.com/crowley100/my_distro_API.git
-      commit: 7986f76cb639c34c03968b27af29a91f074b9ddd
+      commit: 8ba67e1b02705c068cf99cab15171701f5272ef0
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
