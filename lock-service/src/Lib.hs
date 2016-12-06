@@ -79,7 +79,9 @@ lockService = lock
           [(Lock _ False)] -> liftIO $ do
               withMongoDbConnection $ upsert (select ["fName" =: fname] "LOCK_RECORD") $ toBSON $ (Lock fname True)
               return True -- file sucessfully locked
-          [] -> return False -- file does not exist
+          [] -> liftIO $ do -- file does not exist
+              withMongoDbConnection $ upsert (select ["fName" =: fname] "LOCK_RECORD") $ toBSON $ (Lock fname True)
+              return True
     lock _ = do
       return False
 

@@ -103,6 +103,14 @@ doSearchMessage s  = doCall $ searchMessage $ Just s
 doPerformRestCall :: Maybe String -> Maybe String -> Maybe String -> IO ()
 doPerformRestCall s  =  doCall $ performRestCall s
 
+doLockFile :: String -> Maybe String -> Maybe String -> IO ()
+doLockFile fName = doCall $ lock fName
+
+doUnlockFile :: String -> Maybe String -> Maybe String -> IO ()
+doUnlockFile fName = doCall $ unlock fName
+
+doFileLocked :: String -> Maybe String -> Maybe String -> IO ()
+doFileLocked fName = doCall $ locked $ Just fName
 --doLogOut ::
 
 
@@ -164,13 +172,28 @@ opts = do
                                            <$> argument str (metavar "UserName")
                                            <*> argument str (metavar "Password")
                                            <*> serverIpOption
-                                           <*> serverPortOption) "Logs user into the remote server." )))
+                                           <*> serverPortOption) "Logs user into the remote server." )
                       -- <> command "log-out"
                         --           (withInfo ( doLogOut
                           --                 <$> argument str (metavar "UserName")
                             --               <*> argument str (metavar "Password")
                               --             <*> serverIpOption
-                                --           <*> serverPortOption) "Logs user out of the remote server." )))
+                                --           <*> serverPortOption) "Logs user out of the remote server." )
+                       <> command "lock"
+                                   (withInfo ( doLockFile
+                                            <$> argument str (metavar "fName")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Logs user into the remote server." )
+                       <> command "unlock"
+                                   (withInfo ( doUnlockFile
+                                            <$> argument str (metavar "fName")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Logs user into the remote server." )
+                       <> command "is-locked"
+                                   (withInfo ( doFileLocked
+                                            <$> argument str (metavar "fName")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Logs user into the remote server." )))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the use-haskell service." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++
