@@ -5,12 +5,11 @@ description:         Please see README.md
 homepage:            https://github.com/githubuser/file-server#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
+author:              Lorcan Reidy
+maintainer:          loreidy@tcd.ie
+copyright:           2016 Lorcan Reidy
 category:            Web
 build-type:          Simple
-extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
@@ -58,4 +57,4 @@ test-suite file-server-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/file-server
+  location: https://github.com/crowley100/distroFS.git
