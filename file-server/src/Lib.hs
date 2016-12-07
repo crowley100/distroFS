@@ -50,7 +50,7 @@ import           UseHaskellAPIServer
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting file-service."
-  let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
+  let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change!!!
   runSettings settings app
 
 app :: Application
@@ -64,7 +64,7 @@ fileService = download
          :<|> upload
   -- WORKING HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   where -- using Message type to send (fName, fConents)
-    download :: Maybe String -> Handler [Message] -- [] ?
+    download :: Maybe String -> Handler [Message] -- ResponseData?
     download (Just fName) = liftIO $ do
       warnLog $ "Attempting to download file: [" ++ fName ++ "] from db."
       withMongoDbConnection $ do
