@@ -53,6 +53,8 @@ import           System.Log.Logger
 import           System.Random
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           RSAhelpers
+import           Crypto.Random.DRBG
 
 -- type signature correct?
 --sharedSecret :: [Label] -> AES
@@ -128,38 +130,6 @@ server = loadEnvironmentVariable
             return $ ResponseData $ "Success"
           Just _ -> return $ ResponseData $ "Account already exists."
 
-    checkPass :: [Login] -> String -> Bool
-    checkPass ((Login _ hash):_) pass = validatePassword (BS.pack hash) (BS.pack pass)
-    checkpass _ _ = False
-
-    -- appends null ('\0') characters until multiple of 16
-    aesPad :: String -> String
-    aesPad text
-      | ((mod (length text) 16) == 0) = text
-      | otherwise = aesPad (text ++ "\0")
-
-    -- strips null ('\0') characters from end of string
-    aesUnpad :: String -> String
-    aesUnpad text = takeWhile (/= '\0') text
-
-    -- seed -> string_to_encrypt -> encrypted_string
-    myEncryptAES :: String -> String -> String
-    myEncryptAES seed text = do
-      let bseed = (BS.pack $ aesPad seed)
-          btext = (BS.pack $ aesPad text)
-      let myKey = initKey bseed
-      let encryption = encryptECB myKey btext
-      BS.unpack encryption
-
-    -- seed -> string_to_decrypt -> decrypted_string (unpadded)
-    myDecryptAES :: String -> String -> String
-    myDecryptAES seed text = do
-      let bseed = (BS.pack $ aesPad seed)
-          btext = (BS.pack text)
-      let myKey = initKey bseed
-      let decryption = decryptECB myKey btext
-      aesUnpad $ BS.unpack decryption
-
     -- return Token: (ss(Ticket),seshKey,expiryDate)
     logIn :: Login -> Handler [ResponseData]
     logIn val@(Login key pass) = liftIO $ do
@@ -227,3 +197,35 @@ server = loadEnvironmentVariable
       where env = do
              manager <- newManager defaultManagerSettings
              return (SC.ClientEnv manager (SC.BaseUrl SC.Http "hackage.haskell.org" 80 ""))
+
+-- helper functions
+loadPublicKey :: Handler [ResponseData]
+loadPublicKey= liftIO $ do
+  withMongoDbConnection $ do
+    let auth=  "auth" :: String
+
+    docs <- find (select ["owner" =: auth] "Keys") >>= drainCursor
+
+    let pubKey= catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Keys) docs
+    case pubKey of
+      [(Keys _ pub prv)]-> return $ toResponseData pub
+      [] -> liftIO $ do
+        r1 <- newGenIO :: IO HashDRBG
+        let (pub,priv,g2) = generateKeyPair r1 1024
+        let strPubKey = fromPublicKey pub
+        let strPrvKey = fromPrivateKey priv
+        let key = Keys auth strPubKey strPrvKey
+        withMongoDbConnection $ upsert (select  ["owner" =: auth] "Keys") $ toBSON key
+        return $ toResponseData strPubKey
+
+checkPass :: [Login] -> String -> Bool
+checkPass ((Login _ hash):_) pass = validatePassword (BS.pack hash) (BS.pack pass)
+checkpass _ _ = False
+
+--PUT THIS CODE IN A FUNCION
+--let auth=  "auth" :: String
+--         -------- have to make sure that the client calls load first before sign up
+--        keypair <- find (select ["owner" =: auth] "Keys") >>= drainCursor
+--        let [(Keys _ pub prv)]= catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Keys) docs
+--        let prvKey= toPrivateKey prv
+--        let decryptPass= decrypt prvKey password

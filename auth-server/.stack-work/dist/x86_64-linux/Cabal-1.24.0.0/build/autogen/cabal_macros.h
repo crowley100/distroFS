@@ -7,6 +7,13 @@
   (major1) == 0 && (major2) <  1 || \
   (major1) == 0 && (major2) == 1 && (minor) <= 0)
 
+/* package DRBG-0.5.5 */
+#define VERSION_DRBG "0.5.5"
+#define MIN_VERSION_DRBG(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  5 || \
+  (major1) == 0 && (major2) == 5 && (minor) <= 5)
+
 /* package RSA-2.2.0 */
 #define VERSION_RSA "2.2.0"
 #define MIN_VERSION_RSA(major1,major2,minor) (\
@@ -62,6 +69,20 @@
   (major1) <  0 || \
   (major1) == 0 && (major2) <  2 || \
   (major1) == 0 && (major2) == 2 && (minor) <= 11)
+
+/* package crypto-api-0.13.2 */
+#define VERSION_crypto_api "0.13.2"
+#define MIN_VERSION_crypto_api(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  13 || \
+  (major1) == 0 && (major2) == 13 && (minor) <= 2)
+
+/* package cryptohash-0.11.9 */
+#define VERSION_cryptohash "0.11.9"
+#define MIN_VERSION_cryptohash(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  11 || \
+  (major1) == 0 && (major2) == 11 && (minor) <= 9)
 
 /* package hslogger-1.2.10 */
 #define VERSION_hslogger "1.2.10"
@@ -231,7 +252,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "auth-server-0.1.0.0-JgUuTC3kd9pKk9YW9WG5TK"
+#define CURRENT_COMPONENT_ID "auth-server-0.1.0.0-C6XcE13NmJL8VXNbNEgDFP"
 
-#define CURRENT_PACKAGE_KEY "auth-server-0.1.0.0-JgUuTC3kd9pKk9YW9WG5TK"
+#define CURRENT_PACKAGE_KEY "auth-server-0.1.0.0-C6XcE13NmJL8VXNbNEgDFP"
 

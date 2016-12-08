@@ -1,20 +1,10 @@
-Configuring auth-server-0.1.0.0...
 Preprocessing library auth-server-0.1.0.0...
-[1 of 2] Compiling RestClient       ( src/RestClient.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/RestClient.o )
 [2 of 2] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Lib.o )
-
-src/Lib.hs:150:19: warning: [-Wdeprecations]
-    In the use of ‘initKey’ (imported from Crypto.Cipher.AES):
-    Deprecated: "use initAES"
-
-src/Lib.hs:159:19: warning: [-Wdeprecations]
-    In the use of ‘initKey’ (imported from Crypto.Cipher.AES):
-    Deprecated: "use initAES"
 Preprocessing executable 'auth-server-exe' for auth-server-0.1.0.0...
 [1 of 1] Compiling Main             ( app/Main.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/auth-server-exe/auth-server-exe-tmp/Main.o ) [Lib changed]
 Linking .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/auth-server-exe/auth-server-exe ...
 Installing library in
-/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux/lts-7.12/8.0.1/lib/x86_64-linux-ghc-8.0.1/auth-server-0.1.0.0-JgUuTC3kd9pKk9YW9WG5TK
+/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux/lts-7.12/8.0.1/lib/x86_64-linux-ghc-8.0.1/auth-server-0.1.0.0-C6XcE13NmJL8VXNbNEgDFP
 Installing executable(s) in
 /home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux/lts-7.12/8.0.1/bin
 Registering auth-server-0.1.0.0...
