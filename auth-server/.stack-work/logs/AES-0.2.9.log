@@ -1,0 +1,52 @@
+Configuring AES-0.2.9...
+Building AES-0.2.9...
+Preprocessing library AES-0.2.9...
+[1 of 5] Compiling Codec.Crypto.AES.IO ( .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Codec/Crypto/AES/IO.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Codec/Crypto/AES/IO.o )
+
+Codec/Crypto/AES/IO.hsc:11:1: warning: [-Wunused-imports]
+    The import of ‘Control.Applicative’ is redundant
+      except perhaps to import instances from ‘Control.Applicative’
+    To import instances alone, use: import Control.Applicative()
+
+Codec/Crypto/AES/IO.hsc:155:10: warning: [-Wmissing-methods]
+    • No explicit implementation for
+        (either ‘peek’
+                or
+                ‘peekElemOff’
+                or
+                ‘peekByteOff’) and (either ‘poke’
+                                           or
+                                           ‘pokeElemOff’
+                                           or
+                                           ‘pokeByteOff’)
+    • In the instance declaration for ‘Storable EncryptCtxStruct’
+
+Codec/Crypto/AES/IO.hsc:160:10: warning: [-Wmissing-methods]
+    • No explicit implementation for
+        (either ‘peek’
+                or
+                ‘peekElemOff’
+                or
+                ‘peekByteOff’) and (either ‘poke’
+                                           or
+                                           ‘pokeElemOff’
+                                           or
+                                           ‘pokeByteOff’)
+    • In the instance declaration for ‘Storable DecryptCtxStruct’
+[2 of 5] Compiling Codec.Crypto.AES.Random ( Codec/Crypto/AES/Random.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Codec/Crypto/AES/Random.o )
+[3 of 5] Compiling Control.Monad.UnsafeIO ( Control/Monad/UnsafeIO.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Control/Monad/UnsafeIO.o )
+
+Control/Monad/UnsafeIO.hs:11:1: warning: [-Wunused-imports]
+    The import of ‘Data.Monoid’ is redundant
+      except perhaps to import instances from ‘Data.Monoid’
+    To import instances alone, use: import Data.Monoid()
+[4 of 5] Compiling Codec.Crypto.AES.Monad ( Codec/Crypto/AES/Monad.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Codec/Crypto/AES/Monad.o )
+
+Codec/Crypto/AES/Monad.hs:8:1: warning: [-Wunused-imports]
+    The import of ‘Control.Applicative’ is redundant
+      except perhaps to import instances from ‘Control.Applicative’
+    To import instances alone, use: import Control.Applicative()
+[5 of 5] Compiling Codec.Crypto.AES ( Codec/Crypto/AES.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Codec/Crypto/AES.o )
+Installing library in
+/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux/lts-7.12/8.0.1/lib/x86_64-linux-ghc-8.0.1/AES-0.2.9-EL2nY92Dn78drurnb3JCZ
+Registering AES-0.2.9...

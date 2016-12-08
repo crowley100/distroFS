@@ -18,6 +18,11 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except   (ExceptT)
 import           Control.Monad.Trans.Resource
 import           Crypto.BCrypt
+--import           Crypto.Cipher
+--import           Crypto.Cipher.Types
+import           Crypto.Cipher.AES
+import           Codec.Crypto.RSA
+--import           Codec.Crypto.AES
 import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Bson.Generic
@@ -45,13 +50,24 @@ import           System.Log.Handler           (setFormatter)
 import           System.Log.Handler.Simple
 import           System.Log.Handler.Syslog
 import           System.Log.Logger
+import           System.Random
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+
+-- type signature correct?
+--sharedSecret :: [Label] -> AES
+--sharedSecret = do
+--  let bseed = (BS.pack $ "our secret")
+--  return $ initKey bseed
+--sharedSeed = "ourSecret"
+seshSeed = "testKey"
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting auth-server."
   let settings = setPort 8080 $ setLogger aplogger defaultSettings
+  --let x = PublicKey 258
+    --  keys = generateKeyPair r 496
   runSettings settings app
 
 app :: Application
@@ -68,7 +84,6 @@ server = loadEnvironmentVariable
     :<|> signUp
     :<|> searchMessage
     :<|> performRESTCall
-
 
   where
     loadEnvironmentVariable :: Maybe String -> Handler ResponseData
@@ -99,34 +114,74 @@ server = loadEnvironmentVariable
 
       return True  -- as this is a demo, not checking anything
 
-    signUp :: Login -> Handler Bool -- bool?
-    signUp val@(Login key _) = liftIO $ do
+    signUp :: Login -> Handler ResponseData -- bool?
+    signUp val@(Login key pass) = liftIO $ do
       warnLog $ "Checking if user in db: " ++ key
       withMongoDbConnection $ do
         docs <- findOne (select ["userName" =: key] "USER_RECORD")
-        --let x = return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Login) docs
         case docs of
           Nothing -> liftIO $ do
-            -- hash pass first (pass comes in with auth server pub hash)
-            -- decrypt pass, use md5 hash on it and store
-            withMongoDbConnection $ upsert (select ["userName" =: key] "USER_RECORD") $ toBSON val
-            return True
-          Just _ -> return False
+            -- decrypt pass with private key first HERE!
+            hash <- hashPasswordUsingPolicy slowerBcryptHashingPolicy (BS.pack pass)
+            let pwd = BS.unpack $ fromJust hash
+            withMongoDbConnection $ upsert (select ["userName" =: key] "USER_RECORD") $ toBSON val {password = pwd}
+            return $ ResponseData $ "Success"
+          Just _ -> return $ ResponseData $ "Account already exists."
 
-    checkPass :: [String] -> String -> Bool
-    checkPass (hash:_) pass = validatePassword (BS.pack hash) (BS.pack pass)
+    checkPass :: [Login] -> String -> Bool
+    checkPass ((Login _ hash):_) pass = validatePassword (BS.pack hash) (BS.pack pass)
     checkpass _ _ = False
 
+    -- appends null ('\0') characters until multiple of 16
+    aesPad :: String -> String
+    aesPad text
+      | ((mod (length text) 16) == 0) = text
+      | otherwise = aesPad (text ++ "\0")
+
+    -- strips null ('\0') characters from end of string
+    aesUnpad :: String -> String
+    aesUnpad text = takeWhile (/= '\0') text
+
+    -- seed -> string_to_encrypt -> encrypted_string
+    myEncryptAES :: String -> String -> String
+    myEncryptAES seed text = do
+      let bseed = (BS.pack $ aesPad seed)
+          btext = (BS.pack $ aesPad text)
+      let myKey = initKey bseed
+      let encryption = encryptECB myKey btext
+      BS.unpack encryption
+
+    -- seed -> string_to_decrypt -> decrypted_string (unpadded)
+    myDecryptAES :: String -> String -> String
+    myDecryptAES seed text = do
+      let bseed = (BS.pack $ aesPad seed)
+          btext = (BS.pack text)
+      let myKey = initKey bseed
+      let decryption = decryptECB myKey btext
+      aesUnpad $ BS.unpack decryption
+
+    -- return Token: (ss(Ticket),seshKey,expiryDate)
     logIn :: Login -> Handler [ResponseData]
     logIn val@(Login key pass) = liftIO $ do
       warnLog $ "Logging user in: " ++ key
       withMongoDbConnection $ do
+        -- decrypt pass with private key first HERE
+        -- create symmetric AES key from pass
         docs <- find (select ["userName" =: key] "USER_RECORD") >>= drainCursor
-        let x = take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe String) docs
-            valid = checkPass x pass
+        let hashedPass = take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Login) docs
+        let valid = checkPass hashedPass pass
         case valid of
           False -> return $ ((ResponseData $ "FAIL"):[])
-          True -> return $ ((ResponseData $ "WIN"):[])
+          True -> do
+            --let sesh_key = initKey $ BS.pack $ "testKey"
+            let ss = sharedSeed
+            let ticket = myEncryptAES (ss) (seshSeed)
+                encSesh = myEncryptAES (pass) (seshSeed) -- using '|' as delimiter
+            let ticket1 = myDecryptAES (ss) (ticket)
+                encSesh1 = myDecryptAES (pass) (encSesh)
+                -- other servers can extract date from ticket and cmp before servicing
+            --let encrypion = crypt CBC $ $ "16" Encrypt $ pwd
+            return $ ((ResponseData $ ticket1):(ResponseData $ encSesh1):[]) -- RETURN 'TOKEN' WITH HASHED CONTENTS
 
     searchMessage :: Maybe String -> Handler [Message]
     searchMessage (Just key) = liftIO $ do

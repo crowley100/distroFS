@@ -7,6 +7,13 @@
   (major1) == 0 && (major2) <  1 || \
   (major1) == 0 && (major2) == 1 && (minor) <= 0)
 
+/* package RSA-2.2.0 */
+#define VERSION_RSA "2.2.0"
+#define MIN_VERSION_RSA(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  2 || \
+  (major1) == 2 && (major2) == 2 && (minor) <= 0)
+
 /* package aeson-0.11.2.1 */
 #define VERSION_aeson "0.11.2.1"
 #define MIN_VERSION_aeson(major1,major2,minor) (\
@@ -49,6 +56,13 @@
   (major1) == 0 && (major2) <  10 || \
   (major1) == 0 && (major2) == 10 && (minor) <= 8)
 
+/* package cipher-aes-0.2.11 */
+#define VERSION_cipher_aes "0.2.11"
+#define MIN_VERSION_cipher_aes(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  2 || \
+  (major1) == 0 && (major2) == 2 && (minor) <= 11)
+
 /* package hslogger-1.2.10 */
 #define VERSION_hslogger "1.2.10"
 #define MIN_VERSION_hslogger(major1,major2,minor) (\
@@ -76,6 +90,13 @@
   (major1) <  2 || \
   (major1) == 2 && (major2) <  2 || \
   (major1) == 2 && (major2) == 2 && (minor) <= 1)
+
+/* package random-1.1 */
+#define VERSION_random "1.1"
+#define MIN_VERSION_random(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  1 || \
+  (major1) == 1 && (major2) == 1 && (minor) <= 0)
 
 /* package resourcet-1.1.8.1 */
 #define VERSION_resourcet "1.1.8.1"
@@ -210,7 +231,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "auth-server-0.1.0.0-6xa6sQIl9BOBcVSWsweRbl"
+#define CURRENT_COMPONENT_ID "auth-server-0.1.0.0-JgUuTC3kd9pKk9YW9WG5TK"
 
-#define CURRENT_PACKAGE_KEY "auth-server-0.1.0.0-6xa6sQIl9BOBcVSWsweRbl"
+#define CURRENT_PACKAGE_KEY "auth-server-0.1.0.0-JgUuTC3kd9pKk9YW9WG5TK"
 

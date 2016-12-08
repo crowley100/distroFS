@@ -37,6 +37,9 @@ library
                      , http-client
                      , use-haskell-api
                      , bcrypt
+                     , random
+                     , RSA
+                     , cipher-aes
   default-language:    Haskell2010
 
 executable auth-server-exe
