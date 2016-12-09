@@ -20,6 +20,7 @@ import           System.Console.ANSI
 import           System.Environment
 import           UseHaskellAPI
 import           UseHaskellAPIClient
+import           RSAhelpers
 
 -- | to embed git and cabal details for this build into the executable (just for the fun of it)
 -- The code inside $( ) gets run at compile time. The functions run extract data from project files, both .git files and
@@ -80,6 +81,8 @@ instance PrintResponse Bool where
 -- let's put all the hard work in a helper...
 doCall f h p = reportExceptionOr (putStrLn . resp) (SC.runClientM f =<< env h p)
 
+myDoCall f h p = (SC.runClientM f =<< env h p)
+
 -- which makes the actual rest calls trivial...(notice the currying)
 
 doLoadEnvVars :: Maybe String -> Maybe String -> Maybe String -> IO ()
@@ -92,10 +95,28 @@ doStoreMessage :: String -> String -> Maybe String -> Maybe String -> IO ()
 doStoreMessage n m  = doCall $ storeMessage $ Message n m
 
 doSignUp :: String -> String -> Maybe String -> Maybe String -> IO ()
-doSignUp n p = doCall $ signUp $ Login n p
+doSignUp name pass host port = do
+   resp <- myDoCall (loadPublicKey) host port
+   case resp of
+     Left err -> do
+       putStrLn "failed to get public key..."
+     Right ((ResponseData a):(ResponseData b):(ResponseData c):rest) -> do
+       let authKey = toPublicKey (PubKeyInfo a b c)
+       cryptPass <- encryptPass authKey pass
+       putStrLn "got the public key!"
+       doCall (signUp $ Login name cryptPass) host port
 
 doLogIn :: String -> String -> Maybe String -> Maybe String -> IO () -- return token here instead ?
-doLogIn n p = doCall $ logIn $ Login n p
+doLogIn name pass host port = do
+  resp <- myDoCall (loadPublicKey) host port
+  case resp of
+    Left err -> do
+      putStrLn "failed to get public key..."
+    Right ((ResponseData a):(ResponseData b):(ResponseData c):rest) -> do
+      let authKey = toPublicKey (PubKeyInfo a b c)
+      cryptPass <- encryptPass authKey pass
+      putStrLn "got the public key!"
+      doCall (logIn $ Login name cryptPass) host port
 
 doSearchMessage :: String -> Maybe String -> Maybe String -> IO ()
 doSearchMessage s  = doCall $ searchMessage $ Just s
@@ -111,6 +132,12 @@ doUnlockFile fName = doCall $ unlock fName
 
 doFileLocked :: String -> Maybe String -> Maybe String -> IO ()
 doFileLocked fName = doCall $ locked $ Just fName
+
+--doUploadFile:: String -> String -> Maybe String -> Maybe String -> IO ()
+--doUploadFile fName n h p = do
+--  contents <- readFile fName
+--  doCall (uploadFile $  Message fName contents) h p
+
 --doLogOut ::
 
 

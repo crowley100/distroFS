@@ -27,6 +27,7 @@ import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Bson.Generic
 import qualified Data.ByteString.Char8        as BS
+import qualified Data.ByteString.Lazy.Char8   as C
 import qualified Data.ByteString.Lazy         as L
 import qualified Data.List                    as DL
 import           Data.Maybe
@@ -82,6 +83,7 @@ server :: Server API
 server = loadEnvironmentVariable
     :<|> getREADME
     :<|> storeMessage
+    :<|> loadPublicKey
     :<|> logIn
     :<|> signUp
     :<|> searchMessage
@@ -119,13 +121,23 @@ server = loadEnvironmentVariable
     signUp :: Login -> Handler ResponseData -- bool?
     signUp val@(Login key pass) = liftIO $ do
       warnLog $ "Checking if user in db: " ++ key
+      warnLog $ "<<< ENCRYPTED PASS >>> :: [" ++ pass ++ "]"
+      -- decrypt client pass with private key
+      passText <- decryptPass pass
+      --let passText = pass
+      warnLog $ "<<< DECRYPTED PASS >>> :: [" ++ passText ++ "]" ++ " of length: " ++ (show (length passText))
       withMongoDbConnection $ do
         docs <- findOne (select ["userName" =: key] "USER_RECORD")
         case docs of
           Nothing -> liftIO $ do
             -- decrypt pass with private key first HERE!
-            hash <- hashPasswordUsingPolicy slowerBcryptHashingPolicy (BS.pack pass)
+            hash <- hashPasswordUsingPolicy slowerBcryptHashingPolicy (BS.pack passText)
             let pwd = BS.unpack $ fromJust hash
+            hash1 <- hashPasswordUsingPolicy slowerBcryptHashingPolicy (BS.pack passText)
+            let pwd1 = BS.unpack $ fromJust hash
+            liftIO $ do
+              warnLog $ "hash to be stored: " ++ pwd ++ " || of length: " ++ (show (length pwd))
+              warnLog $ "hash1 to be stored: " ++ pwd1 ++ " || of length: " ++ (show (length pwd1))
             withMongoDbConnection $ upsert (select ["userName" =: key] "USER_RECORD") $ toBSON val {password = pwd}
             return $ ResponseData $ "Success"
           Just _ -> return $ ResponseData $ "Account already exists."
@@ -133,25 +145,21 @@ server = loadEnvironmentVariable
     -- return Token: (ss(Ticket),seshKey,expiryDate)
     logIn :: Login -> Handler [ResponseData]
     logIn val@(Login key pass) = liftIO $ do
-      warnLog $ "Logging user in: " ++ key
+      -- decrypt client pass with private key
+      passText <- decryptPass pass
+      warnLog $ "<<< DECRYPTED PASS >>> :: [" ++ passText ++ "]" ++ " of length: " ++ (show (length passText))
       withMongoDbConnection $ do
-        -- decrypt pass with private key first HERE
         -- create symmetric AES key from pass
         docs <- find (select ["userName" =: key] "USER_RECORD") >>= drainCursor
-        let hashedPass = take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Login) docs
-        let valid = checkPass hashedPass pass
+        let hashedPass@((Login _ x):_) = take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Login) docs
+        let valid = checkPass hashedPass passText
         case valid of
           False -> return $ ((ResponseData $ "FAIL"):[])
           True -> do
-            --let sesh_key = initKey $ BS.pack $ "testKey"
-            let ss = sharedSeed
+            let ss = (aesPad sharedSeed)
             let ticket = myEncryptAES (ss) (seshSeed)
-                encSesh = myEncryptAES (pass) (seshSeed) -- using '|' as delimiter
-            let ticket1 = myDecryptAES (ss) (ticket)
-                encSesh1 = myDecryptAES (pass) (encSesh)
-                -- other servers can extract date from ticket and cmp before servicing
-            --let encrypion = crypt CBC $ $ "16" Encrypt $ pwd
-            return $ ((ResponseData $ ticket1):(ResponseData $ encSesh1):[]) -- RETURN 'TOKEN' WITH HASHED CONTENTS
+                encSesh = myEncryptAES (aesPad passText) (seshSeed) -- using '|' as delimiter
+            return $ ((ResponseData $ ticket):(ResponseData $ encSesh):[]) -- RETURN 'TOKEN' WITH HASHED CONTENTS
 
     searchMessage :: Maybe String -> Handler [Message]
     searchMessage (Just key) = liftIO $ do
@@ -200,12 +208,10 @@ server = loadEnvironmentVariable
 
 -- helper functions
 loadPublicKey :: Handler [ResponseData]
-loadPublicKey= liftIO $ do
+loadPublicKey = liftIO $ do
   withMongoDbConnection $ do
     let auth=  "auth" :: String
-
     docs <- find (select ["owner" =: auth] "Keys") >>= drainCursor
-
     let pubKey= catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Keys) docs
     case pubKey of
       [(Keys _ pub prv)]-> return $ toResponseData pub
@@ -222,10 +228,14 @@ checkPass :: [Login] -> String -> Bool
 checkPass ((Login _ hash):_) pass = validatePassword (BS.pack hash) (BS.pack pass)
 checkpass _ _ = False
 
---PUT THIS CODE IN A FUNCION
---let auth=  "auth" :: String
---         -------- have to make sure that the client calls load first before sign up
---        keypair <- find (select ["owner" =: auth] "Keys") >>= drainCursor
---        let [(Keys _ pub prv)]= catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Keys) docs
---        let prvKey= toPrivateKey prv
---        let decryptPass= decrypt prvKey password
+decryptPass :: String ->  IO String
+decryptPass password = do
+    let auth = "auth" :: String
+    withMongoDbConnection $ do
+      keypair <- find (select ["owner" =: auth] "Keys") >>= drainCursor
+      let [(Keys _ pub prv)]= catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Keys) keypair
+      let prvKey = toPrivateKey prv -- returns PrivateKey data type
+      let pass = C.pack password -- converts  into [word8] Codec.Binary.UTF8.String
+      let dpass = decrypt prvKey pass
+      return $ C.unpack dpass
+               --- returns as string
