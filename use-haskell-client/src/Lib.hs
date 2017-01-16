@@ -124,6 +124,7 @@ doSearchMessage s  = doCall $ searchMessage $ Just s
 doPerformRestCall :: Maybe String -> Maybe String -> Maybe String -> IO ()
 doPerformRestCall s  =  doCall $ performRestCall s
 
+-- lock service commands
 doLockFile :: String -> Maybe String -> Maybe String -> IO ()
 doLockFile fName = doCall $ lock fName
 
@@ -133,10 +134,21 @@ doUnlockFile fName = doCall $ unlock fName
 doFileLocked :: String -> Maybe String -> Maybe String -> IO ()
 doFileLocked fName = doCall $ locked $ Just fName
 
---doUploadFile:: String -> String -> Maybe String -> Maybe String -> IO ()
---doUploadFile fName n h p = do
---  contents <- readFile fName
---  doCall (uploadFile $  Message fName contents) h p
+-- file service commands
+doDownloadFile:: String -> Maybe String -> Maybe String -> IO ()
+doDownloadFile fPath h p = do
+  --contents <- readFile fName
+  getFile <- myDoCall (download $ Just fPath) h p
+  case getFile of
+    Left err -> do
+      putStrLn "error retrieving file..."
+    Right ((Message file_path text):rest) ->
+      writeFile file_path text
+
+doUploadFile:: String -> Maybe String -> Maybe String -> IO ()
+doUploadFile fPath h p = do
+  contents <- readFile fPath
+  doCall (upload $  Message fPath contents) h p
 
 --doLogOut ::
 
@@ -219,6 +231,16 @@ opts = do
                        <> command "is-locked"
                                    (withInfo ( doFileLocked
                                             <$> argument str (metavar "fName")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Logs user into the remote server." )
+                       <> command "download"
+                                   (withInfo ( doDownloadFile
+                                            <$> argument str (metavar "fPath")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Logs user into the remote server." )
+                       <> command "upload"
+                                   (withInfo ( doUploadFile
+                                            <$> argument str (metavar "fPath")
                                             <*> serverIpOption
                                             <*> serverPortOption) "Logs user into the remote server." )))
              (  fullDesc

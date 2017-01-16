@@ -62,13 +62,13 @@ api = Proxy
 fileService :: Server FileAPI
 fileService = download
          :<|> upload
-  -- WORKING HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  where -- using Message type to send (fName, fConents)
+
+  where -- using Message type to send (fPath, fConents)
     download :: Maybe String -> Handler [Message] -- ResponseData?
-    download (Just fName) = liftIO $ do
-      warnLog $ "Attempting to download file: [" ++ fName ++ "] from db."
+    download (Just fPath) = liftIO $ do
+      warnLog $ "Attempting to download file: [" ++ fPath ++ "] from db."
       withMongoDbConnection $ do
-        docs <- find (select ["name" =: fName] "FILE_RECORD") >>= drainCursor
+        docs <- find (select ["name" =: fPath] "FILE_RECORD") >>= drainCursor
         return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) docs
 
     download Nothing = liftIO $ do
@@ -77,7 +77,7 @@ fileService = download
 
     -- lock here prior to upload of file
     upload :: Message -> Handler Bool
-    upload myFile@(Message fName _) = liftIO $ do
-      warnLog $ "Uploading file to db: [" ++ fName ++ "]"
-      withMongoDbConnection $ upsert (select ["name" =: fName] "FILE_RECORD") $ toBSON myFile
+    upload myFile@(Message fPath _) = liftIO $ do
+      warnLog $ "Uploading file to db: [" ++ fPath ++ "]"
+      withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       return True
