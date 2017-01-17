@@ -210,7 +210,7 @@ server = loadEnvironmentVariable
 loadPublicKey :: Handler [ResponseData]
 loadPublicKey = liftIO $ do
   withMongoDbConnection $ do
-    let auth=  "auth" :: String
+    let auth = "auth" :: String
     docs <- find (select ["owner" =: auth] "Keys") >>= drainCursor
     let pubKey= catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Keys) docs
     case pubKey of

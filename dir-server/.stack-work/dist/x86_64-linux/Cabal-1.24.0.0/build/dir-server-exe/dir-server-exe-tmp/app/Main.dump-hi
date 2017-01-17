@@ -1,11 +1,11 @@
 
 ==================== FINAL INTERFACE ====================
-2016-12-07 14:37:49.180018 UTC
+2017-01-17 18:16:47.746404 UTC
 
 interface main@main:Main 8001
-  interface hash: ad15c1c95ee0119b92deafd03900e2ab
-  ABI hash: 23e026d9c2248614e89d870ede7c5d2f
-  export-list hash: 341f76a215acfacee3b49a44452c32c0
+  interface hash: b10742ba861c94d66b1e99fa9fb02116
+  ABI hash: 6b2456cc8b0f94b5131c655c49029b38
+  export-list hash: 86ca09d95dd8d7e369964eca3ed03297
   orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
   flag hash: 11e9e2e4b480f0ec56ba0f3b1b3f66c2
   sig of: Nothing
@@ -14,10 +14,15 @@ interface main@main:Main 8001
 exports:
   Main.main
 module dependencies:
-package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozORhov
+package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
+                      MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozORhov
+                      RSA-2.2.0@RSA-2.2.0-EHQUhJZHM7hLOJkF4fZ4IR
+                      SHA-1.6.4.2@SHA-1.6.4.2-GSP9nhHyWNEAImBrL9QfXp
                       aeson-0.11.2.1@aeson-0.11.2.1-5ZQWuTFmffALcfpzDCXoOz
                       appar-0.1.4@appar-0.1.4-1in4Ewd8JBkAYDZSWXLSe0
                       array-0.5.1.1@array-0.5.1.1
+                      asn1-encoding-0.9.4@asn1-encoding-0.9.4-2Zu5ldLYD571Aw26w0CWF6
+                      asn1-types-0.3.2@asn1-types-0.3.2-4Rz223aP8OG6vnHYiLX5Ab
                       async-2.1.1@async-2.1.1-xFiBzw9xoB8HPZAuxUY2o
                       attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR
                       auto-update-0.1.4@auto-update-0.1.4-GAesfFmqoZzBz6e09kRyzb
@@ -36,13 +41,18 @@ package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozO
                       byteorder-1.0.4@byteorder-1.0.4-BbL4c17EpZrL9PcZm0xys9
                       bytestring-0.10.8.1@bytestring-0.10.8.1
                       case-insensitive-1.2.0.7@case-insensitive-1.2.0.7-FlqweN7AuKj9EdU2arVEt4
+                      cereal-0.5.4.0@cereal-0.5.4.0-2FJYHGgtE5C3SxaZjt25xS
                       cipher-aes-0.2.11@cipher-aes-0.2.11-6IDqXzfBW6B3WK2bKJbiBh
+                      cipher-aes128-0.7.0.3@cipher-aes128-0.7.0.3-AoB6dQNk7KT8S3ubkzSL34
                       containers-0.5.7.1@containers-0.5.7.1
                       cookie-0.4.2.1@cookie-0.4.2.1-2a2c54yIyBn79Ul3iLWclJ
                       cprng-aes-0.6.1@cprng-aes-0.6.1-COLYQrn2KP0KrG5tq2u9OS
+                      crypto-api-0.13.2@crypto-api-0.13.2-LliNhOf849x8qng9ESkbgP
                       crypto-cipher-types-0.0.9@crypto-cipher-types-0.0.9-Iwzx9devSK6HQoOjujg46u
+                      crypto-pubkey-types-0.4.3@crypto-pubkey-types-0.4.3-JpSD95Q37wENJRNhamSc3
                       crypto-random-0.0.9@crypto-random-0.0.9-GQAZIw8UH93GFERaAFFYYo
                       cryptohash-0.11.9@cryptohash-0.11.9-9KNu0EEbreBFrmNJAeHgYz
+                      cryptohash-cryptoapi-0.1.4@cryptohash-cryptoapi-0.1.4-Fy30UnGI9vX8M9zQlezAn0
                       cryptonite-0.19@cryptonite-0.19-G9PYO4oOEqhDTta2u9rAaU
                       data-binary-ieee754-0.4.4@data-binary-ieee754-0.4.4-F1HjhwdV1xx5grS0eMjeg2
                       data-default-0.7.1.1@data-default-0.7.1.1-5uix4eIzBY9IcVb4V2HbW3
@@ -51,7 +61,7 @@ package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozO
                       data-default-instances-dlist-0.0.1@data-default-instances-dlist-0.0.1-7EnnOuRxBMR4O5lm1rpRqD
                       data-default-instances-old-locale-0.0.1@data-default-instances-old-locale-0.0.1-LPOHPEJCJUa53W1ZYaHB84
                       deepseq-1.4.2.0@deepseq-1.4.2.0
-                      dir-server-0.1.0.0@dir-server-0.1.0.0-1gcWfVYJbV6AfwttvBnew7
+                      dir-server-0.1.0.0@dir-server-0.1.0.0-7GM8X08wsex4sZinZNb5S9
                       directory-1.2.6.2@directory-1.2.6.2
                       dlist-0.8.0.2@dlist-0.8.0.2-GWAMmbX9rLg3tqrbOizHGv
                       easy-file-0.2.1@easy-file-0.2.1-bAUkz2rC2kFhBbPjw2Of5
@@ -63,6 +73,7 @@ package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozO
                       ghc-boot-th-8.0.1@ghc-boot-th-8.0.1 ghc-prim-0.5.0.0
                       hashable-1.2.4.0@hashable-1.2.4.0-EMu4H7FB10MAl6hwKw992G
                       hashtables-1.2.1.0@hashtables-1.2.1.0-97BixhaJIWTIDAaThqJujl
+                      hourglass-0.2.10@hourglass-0.2.10-I8h0J4RSF89FN6CuD9x2Xx
                       hslogger-1.2.10@hslogger-1.2.10-6Ih3VN3QBbAJ6pLH6h3KNu
                       http-api-data-0.3.2@http-api-data-0.3.2-A22DPUhAmUlrIoBZ4qkGB
                       http-client-0.4.31.2@http-client-0.4.31.2-81NyMkNcWWADaJ0Cq5FYRE
@@ -83,10 +94,12 @@ package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozO
                       nonce-1.0.2@nonce-1.0.2-187zSgt2OIA84d9i9xgwRX
                       old-locale-1.0.0.7@old-locale-1.0.0.7-6glXNhHF891B41ZfuI8hU8
                       old-time-1.1.0.3@old-time-1.1.0.3-IcvdkJUsE9M8t3io8peAEp
+                      parallel-3.2.1.0@parallel-3.2.1.0-6VcN0yUHtcs831TgbJiSSi
                       parsec-3.1.11@parsec-3.1.11-BCos4GEVCuDB8dnOCBHO6X
                       pretty-1.1.3.3@pretty-1.1.3.3
                       primitive-0.6.1.0@primitive-0.6.1.0-Ip44DqhfCp21tTUYbecwa
                       psqueues-0.2.2.3@psqueues-0.2.2.3-YN2xKllZOMJLtAgRHlkEw
+                      pureMD5-2.1.3@pureMD5-2.1.3-KuMjsfZZWDT9wovcuYXIJ5
                       random-1.1@random-1.1-54KmMHXjttlERYcr1mvsAe
                       random-shuffle-0.0.4@random-shuffle-0.0.4-LfeDYNPfwrQ2o9p6tw2M9l
                       resourcet-1.1.8.1@resourcet-1.1.8.1-1XWaZ7RmVde330DM5PRI3Z
@@ -112,7 +125,7 @@ package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozO
                       unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW
                       unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW
                       uri-bytestring-0.2.2.1@uri-bytestring-0.2.2.1-LMJUdG9s1QpIQ10mPWMO6d
-                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FJx60BJH3MlJbzLkuW9QFl
+                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HPIxIvekk5KErxr2gmPUyr
                       utf8-string-1.0.1.1@utf8-string-1.0.1.1-2T8mBCuEDlXDo8zed8Onw4
                       uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx
                       vault-0.3.0.6@vault-0.3.0.6-CA9Xj82tAPe9nD32xVMgDG
@@ -123,7 +136,9 @@ package dependencies: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozO
                       warp-3.2.9@warp-3.2.9-GXzPTh1481F3R0zZxzj1WW
                       word8-0.1.2@word8-0.1.2-2E1SgvvAV2fK8vZPDHbRan
                       zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV
-orphans: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozORhov:Control.Monad.Random
+orphans: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69:Crypto.Random.DRBG
+         MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozORhov:Control.Monad.Random
+         RSA-2.2.0@RSA-2.2.0-EHQUhJZHM7hLOJkF4fZ4IR:Codec.Crypto.RSA.Pure
          aeson-0.11.2.1@aeson-0.11.2.1-5ZQWuTFmffALcfpzDCXoOz:Data.Aeson.Types.Generic
          aeson-0.11.2.1@aeson-0.11.2.1-5ZQWuTFmffALcfpzDCXoOz:Data.Aeson.Types.Instances
          attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.ByteString.Char8
@@ -132,6 +147,8 @@ orphans: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozORhov:Control.
          binary-0.8.3.0@binary-0.8.3.0:Data.Binary.Generic
          bson-generic-0.0.8@bson-generic-0.0.8-DtORpoUHwQhDReLJ5Keop0:Data.Bson.Generic
          bytestring-0.10.8.1@bytestring-0.10.8.1:Data.ByteString.Builder
+         cipher-aes128-0.7.0.3@cipher-aes128-0.7.0.3-AoB6dQNk7KT8S3ubkzSL34:Crypto.Cipher.AES128
+         crypto-api-0.13.2@crypto-api-0.13.2-LliNhOf849x8qng9ESkbgP:Crypto.Classes
          data-default-instances-containers-0.0.1@data-default-instances-containers-0.0.1-B3LqdWnlDzL8N7WtQnkQ3T:Data.Default.Instances.Containers
          data-default-instances-dlist-0.0.1@data-default-instances-dlist-0.0.1-7EnnOuRxBMR4O5lm1rpRqD:Data.Default.Instances.DList
          data-default-instances-old-locale-0.0.1@data-default-instances-old-locale-0.0.1-LPOHPEJCJUa53W1ZYaHB84:Data.Default.Instances.OldLocale
@@ -148,7 +165,8 @@ orphans: MonadRandom-0.4.2.3@MonadRandom-0.4.2.3-8TfCm6PGvGYB7omozORhov:Control.
          time-1.6.0.1@time-1.6.0.1:Data.Time.LocalTime.LocalTime
          transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Error
          unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW:Data.UnixTime.Diff
-         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FJx60BJH3MlJbzLkuW9QFl:UseHaskellAPI
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HPIxIvekk5KErxr2gmPUyr:RSAhelpers
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HPIxIvekk5KErxr2gmPUyr:UseHaskellAPI
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Fusion.Bundle
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
 family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.Internal.Types
@@ -195,7 +213,8 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashMap.Base
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashSet
                          uri-bytestring-0.2.2.1@uri-bytestring-0.2.2.1-LMJUdG9s1QpIQ10mPWMO6d:URI.ByteString.Types
-                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-FJx60BJH3MlJbzLkuW9QFl:UseHaskellAPI
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HPIxIvekk5KErxr2gmPUyr:RSAhelpers
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HPIxIvekk5KErxr2gmPUyr:UseHaskellAPI
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal.Builder
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector
@@ -205,7 +224,7 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed.Base
                          zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV:Codec.Compression.Zlib.Stream
 import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
-import  -/  dir-server-0.1.0.0@dir-server-0.1.0.0-1gcWfVYJbV6AfwttvBnew7:Lib 41fc0d523b707d9662acc9f10dc3ee25
+import  -/  dir-server-0.1.0.0@dir-server-0.1.0.0-7GM8X08wsex4sZinZNb5S9:Lib 23b8a426d5a77fee3c86c4457c9a783f
 import  -/  ghc-prim-0.5.0.0:GHC.Types 7378e41b7749213c8c88ceb6b0665d4c
 d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule :: GHC.Types.Module
@@ -219,12 +238,12 @@ d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule2 :: GHC.Types.TrName
   {- HasNoCafRefs, Strictness: m1,
      Unfolding: (GHC.Types.TrNameS "main"#) -}
-2ff0ef3fccaef2b7cc153daeff9ffe77
+5a245142dbdcac90155a385f43e1179f
   main :: GHC.Types.IO ()
   {- Arity: 1,
      Unfolding: InlineRule (0, True, True)
                 Lib.startApp1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
-83ee7902feebae4bcf68d28ae4491673
+274ab861d4e9fd266ece0f44fd7e1ad0
   main1 ::
     GHC.Prim.State# GHC.Prim.RealWorld
     -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)

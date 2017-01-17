@@ -61,6 +61,7 @@ api = Proxy
 
 dirService :: Server DirAPI
 dirService = fileQuery
+        :<|> mapFile
 
   where
     -- client wants file(x)
@@ -71,5 +72,14 @@ dirService = fileQuery
     fileQuery (Just fName) = liftIO $ do
       warnLog $ "Client querying file: [" ++ fName ++ "]"
       withMongoDbConnection $ do
+        docs <- find (select ["name" =: fName] "FILEREF_RECORD") >>= drainCursor
+        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+
+    mapFile :: Maybe String -> Handler [FileRef] -- incomplete
+    mapFile (Just fName) = liftIO $ do
+      warnLog $ "Client mapping file: [" ++ fName ++ "]"
+      withMongoDbConnection $ do
+        docs <- find (select [] "IDs")
+
         docs <- find (select ["name" =: fName] "FILEREF_RECORD") >>= drainCursor
         return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs

@@ -1,9 +1,18 @@
 Configuring use-haskell-api-0.1.0.0...
 Preprocessing library use-haskell-api-0.1.0.0...
-[1 of 4] Compiling UseHaskellAPIServer ( src/UseHaskellAPIServer.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/UseHaskellAPIServer.o )
-[2 of 4] Compiling UseHaskellAPI    ( src/UseHaskellAPI.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/UseHaskellAPI.o )
-[3 of 4] Compiling UseHaskellAPIClient ( src/UseHaskellAPIClient.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/UseHaskellAPIClient.o )
-[4 of 4] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Lib.o )
+[1 of 5] Compiling UseHaskellAPIServer ( src/UseHaskellAPIServer.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/UseHaskellAPIServer.o )
+[2 of 5] Compiling RSAhelpers       ( src/RSAhelpers.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/RSAhelpers.o )
+[3 of 5] Compiling UseHaskellAPI    ( src/UseHaskellAPI.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/UseHaskellAPI.o )
+
+src/UseHaskellAPI.hs:40:15: warning: [-Wdeprecations]
+    In the use of ‘initKey’ (imported from Crypto.Cipher.AES):
+    Deprecated: "use initAES"
+
+src/UseHaskellAPI.hs:49:15: warning: [-Wdeprecations]
+    In the use of ‘initKey’ (imported from Crypto.Cipher.AES):
+    Deprecated: "use initAES"
+[4 of 5] Compiling UseHaskellAPIClient ( src/UseHaskellAPIClient.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/UseHaskellAPIClient.o )
+[5 of 5] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Lib.o )
 Installing library in
-/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux/lts-7.12/8.0.1/lib/x86_64-linux-ghc-8.0.1/use-haskell-api-0.1.0.0-FJx60BJH3MlJbzLkuW9QFl
+/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux/lts-7.12/8.0.1/lib/x86_64-linux-ghc-8.0.1/use-haskell-api-0.1.0.0-HPIxIvekk5KErxr2gmPUyr
 Registering use-haskell-api-0.1.0.0...
