@@ -164,7 +164,6 @@ server = loadEnvironmentVariable
     searchMessage :: Maybe String -> Handler [Message]
     searchMessage (Just key) = liftIO $ do
       warnLog $ "Searching for value for key: " ++ key
-
       withMongoDbConnection $ do
         docs <- find (select ["name" =: key] "MESSAGE_RECORD") >>= drainCursor
         --warnLog $ "retrieved data: " ++ show docs
@@ -238,4 +237,3 @@ decryptPass password = do
       let pass = C.pack password -- converts  into [word8] Codec.Binary.UTF8.String
       let dpass = decrypt prvKey pass
       return $ C.unpack dpass
-               --- returns as string

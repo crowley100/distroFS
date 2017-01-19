@@ -60,7 +60,9 @@ api :: Proxy DirAPI
 api = Proxy
 
 dirService :: Server DirAPI
-dirService = fileQuery
+dirService = lsDir
+        :<|> lsFile
+        :<|> fileQuery
         :<|> mapFile
 
   where
@@ -68,18 +70,57 @@ dirService = fileQuery
     -- server checks db mapping of (x,FILE_ID)
     -- where FILE_ID is of type (ID, FS_IP/PORT)
     -- server responds with FILE_ID
-    fileQuery :: Maybe String -> Handler [FileRef] -- incomplete
-    fileQuery (Just fName) = liftIO $ do
-      warnLog $ "Client querying file: [" ++ fName ++ "]"
+
+    -- temp implementation
+    lsDir :: Handler [ResponseData]
+    lsDir = liftIO $ do
       withMongoDbConnection $ do
-        docs <- find (select ["name" =: fName] "FILEREF_RECORD") >>= drainCursor
+        return [(ResponseData $ "temp")]
+
+    -- temp implementation
+    lsFile :: Maybe String -> Handler [ResponseData]
+    lsFile (Just temp) = liftIO $ do
+      withMongoDbConnection $ do
+        return [(ResponseData $ "temp")]
+
+    fileQuery :: Message -> Handler [FileRef]
+    fileQuery query@(Message fName fDir) = liftIO $ do
+      warnLog $ "Client querying file ["++fName++"] in directory: " ++ fDir
+      withMongoDbConnection $ do
+        docs <- find (select ["name" =: (fName ++ fDir)] "FILEREF_RECORD") >>= drainCursor
         return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
 
-    mapFile :: Maybe String -> Handler [FileRef] -- incomplete
-    mapFile (Just fName) = liftIO $ do
-      warnLog $ "Client mapping file: [" ++ fName ++ "]"
+    mapFile :: Message -> Handler [FileRef]
+    mapFile val@(Message fName fDir) = liftIO $ do
+      warnLog $ "Client mapping file ["++fName++"] in directory: " ++ fDir
       withMongoDbConnection $ do
-        docs <- find (select [] "IDs")
-
-        docs <- find (select ["name" =: fName] "FILEREF_RECORD") >>= drainCursor
-        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+        let filepath = (fName ++ fDir)
+        docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+        let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+        case result of
+          (ref@(FileRef _ fID ip port):_) -> return [ref]
+          [] -> do
+            -- determine unique directory id (pull from db and update)
+            -- upsert new FileRef entery (using record: (fdir,(ip,port)))
+            -- new FileRef: (id,ip,port)
+            fsInfo <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
+            let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
+            case fs of
+              [] -> return ([] :: [FileRef])
+              (info@(FsInfo _ ip port):_) -> do
+                ids <- find (select ["directory" =: fDir] "ID_RECORD") >>= drainCursor
+                -- Int probably wont work, change to string and match API
+                let newID = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileID) ids
+                case newID of
+                  (FileID dirName myID:_) -> liftIO $ do
+                    let retID = myID
+                        newID = (show ((read myID) + 1))
+                    let value = FileID dirName newID
+                    withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
+                    return [(FileRef filepath retID ip port)]
+                  [] -> liftIO $ do
+                    let retID = "0"
+                        newID = "1"
+                    let value = FileID fDir newID
+                    withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
+                    return [(FileRef filepath retID ip port)]
