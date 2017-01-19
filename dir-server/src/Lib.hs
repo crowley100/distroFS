@@ -47,9 +47,37 @@ import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
 
+-- ip defaulting to local host (may change to dynamically assign ips)
+initFileServers :: IO ()
+initFileServers = do
+  warnLog $ "populating db records with default values"
+  withMongoDbConnection $ do
+    let ip = "127.0.0.1"
+        name1 = "fs1"
+        name2 = "fs2"
+        name3 = "fs3"
+        port1 = "8081"
+        port2 = "8082"
+        port3 = "8083"
+    let value1 = (FsInfo name1 ip port1)
+        value2 = (FsInfo name2 ip port2)
+        value3 = (FsInfo name3 ip port3)
+        files1 = (FsContents name1 [])
+        files2 = (FsContents name2 [])
+        files3 = (FsContents name3 [])
+    -- enter file server meta data
+    upsert (select  ["directory" =: name1] "FS_INFO") $ toBSON value1
+    upsert (select  ["directory" =: name2] "FS_INFO") $ toBSON value2
+    upsert (select  ["directory" =: name3] "FS_INFO") $ toBSON value3
+    -- specify file server contents
+    upsert (select  ["dirName" =: name1] "CONTENTS_RECORD") $ toBSON files1
+    upsert (select  ["dirName" =: name2] "CONTENTS_RECORD") $ toBSON files2
+    upsert (select  ["dirName" =: name3] "CONTENTS_RECORD") $ toBSON files3
+
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
-  warnLog "Starting file-service."
+  warnLog $ "Starting directory-service."
+  initFileServers -- possible changes here!
   let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
   runSettings settings app
 
@@ -64,31 +92,31 @@ dirService = lsDir
         :<|> lsFile
         :<|> fileQuery
         :<|> mapFile
-
   where
-    -- client wants file(x)
-    -- server checks db mapping of (x,FILE_ID)
-    -- where FILE_ID is of type (ID, FS_IP/PORT)
-    -- server responds with FILE_ID
-
-    -- temp implementation
-    lsDir :: Handler [ResponseData]
+    lsDir :: Handler [FsContents]
     lsDir = liftIO $ do
+      warnLog $ "Client listing directories"
       withMongoDbConnection $ do
-        return [(ResponseData $ "temp")]
+        dirs <- find (select [] "CONTENTS_RECORD") >>= drainCursor
+        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) dirs
 
-    -- temp implementation
-    lsFile :: Maybe String -> Handler [ResponseData]
-    lsFile (Just temp) = liftIO $ do
+    lsFile :: Maybe String -> Handler [FsContents]
+    lsFile (Just directory) = liftIO $ do
+      warnLog $ "Client listing files in directory: " ++ directory
       withMongoDbConnection $ do
-        return [(ResponseData $ "temp")]
+        contents <- find (select ["dirName" =: directory] "CONTENTS_RECORD") >>= drainCursor
+        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
 
     fileQuery :: Message -> Handler [FileRef]
     fileQuery query@(Message fName fDir) = liftIO $ do
       warnLog $ "Client querying file ["++fName++"] in directory: " ++ fDir
       withMongoDbConnection $ do
-        docs <- find (select ["name" =: (fName ++ fDir)] "FILEREF_RECORD") >>= drainCursor
-        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+        let filepath = (fName ++ fDir)
+        docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+        let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+        case result of
+          (ref:_) -> return [ref]
+          [] -> return ([] :: [FileRef]) -- Can handle empty list on client side
 
     mapFile :: Message -> Handler [FileRef]
     mapFile val@(Message fName fDir) = liftIO $ do
@@ -98,21 +126,25 @@ dirService = lsDir
         docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
         case result of
-          (ref@(FileRef _ fID ip port):_) -> return [ref]
+          (ref:_) -> return [ref]
           [] -> do
-            -- determine unique directory id (pull from db and update)
-            -- upsert new FileRef entery (using record: (fdir,(ip,port)))
-            -- new FileRef: (id,ip,port)
             fsInfo <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
             let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
             case fs of
-              [] -> return ([] :: [FileRef])
+              [] -> return ([] :: [FileRef]) -- Can handle empty list on client side
               (info@(FsInfo _ ip port):_) -> do
+                -- update contents record
+                contents <- find (select ["dirName" =: fDir] "CONTENTS_RECORD") >>= drainCursor
+                let fList = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
+                case fList of
+                  ((FsContents _ files):_) -> liftIO $ do
+                    let newContents = (FsContents fDir (files ++ [fName]))
+                    withMongoDbConnection $ upsert (select  ["dirName" =: fDir] "CONTENTS_RECORD") $ toBSON newContents
+                  [] -> liftIO $ do warnLog $ "ERROR: inconsistent db record (CONTENTS_RECORD)"
                 ids <- find (select ["directory" =: fDir] "ID_RECORD") >>= drainCursor
-                -- Int probably wont work, change to string and match API
                 let newID = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileID) ids
                 case newID of
-                  (FileID dirName myID:_) -> liftIO $ do
+                  ((FileID dirName myID):_) -> liftIO $ do
                     let retID = myID
                         newID = (show ((read myID) + 1))
                     let value = FileID dirName newID
