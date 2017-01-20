@@ -75,6 +75,14 @@ instance PrintResponse Bool where
   resp True =  "Response is a boolean : Totally!"
   resp False = "Response is a boolean : Like No Way!"
 
+instance PrintResponse FsContents where
+  resp r = "Response is an array with values: " ++ dirName r
+
+instance PrintResponse [FsContents] where
+  resp [] = "end."
+  resp [x] = "Response is a single message: " ++ dirName x
+  resp rs = "Response is an array with values: " ++ (intercalate ", " $ map dirName rs)
+
 -- | Command line option handlers, one for each command
 -- These are called from the options parsing and do the actuall work of the program.
 
@@ -135,9 +143,8 @@ doFileLocked :: String -> Maybe String -> Maybe String -> IO ()
 doFileLocked fName = doCall $ locked $ Just fName
 
 -- file service commands
-doDownloadFile:: String -> Maybe String -> Maybe String -> IO ()
+doDownloadFile :: String -> Maybe String -> Maybe String -> IO ()
 doDownloadFile fPath h p = do
-  --contents <- readFile fName
   getFile <- myDoCall (download $ Just fPath) h p
   case getFile of
     Left err -> do
@@ -145,14 +152,37 @@ doDownloadFile fPath h p = do
     Right ((Message file_path text):rest) ->
       writeFile file_path text
 
-doUploadFile:: String -> Maybe String -> Maybe String -> IO ()
+doUploadFile :: String -> Maybe String -> Maybe String -> IO ()
 doUploadFile fPath h p = do
   contents <- readFile fPath
   doCall (upload $  Message fPath contents) h p
 
---doLogOut ::
+-- directory service commands
+doLsDir :: Maybe String -> Maybe String -> IO ()
+doLsDir h p = do
+   doCall lsDir h p
 
+doLsFile :: String -> Maybe String -> Maybe String -> IO ()
+doLsFile dirName h p = do
+  getFiles <- myDoCall (lsFile $ Just dirName) h p
+  case getFiles of
+    Left err -> do
+      putStrLn "error listing files..."
+    Right ((FsContents dir files):_) -> do
+      case files of
+        [] -> do putStrLn "directory empty..."
+        [x] -> do putStrLn $ "Files: " ++ x
+        xs -> do putStrLn $ "Files: " ++ (intercalate "\n " xs)
 
+-- can combine this logic with download when integrating
+doFileQuery :: String -> String -> Maybe String -> Maybe String -> IO ()
+doFileQuery fileName dirName h p = do
+  getRef <- myDoCall (fileQuery $ Message fileName dirName) h p
+
+-- can combine this logic with upload when integrating
+doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
+doMapFile fileName dirName h p = do
+  getMapping <- myDoCall (mapFile $ Message fileName dirName) h p
 -- | The options handling
 
 -- First we invoke the options on the entry point.
@@ -222,27 +252,48 @@ opts = do
                                    (withInfo ( doLockFile
                                             <$> argument str (metavar "fName")
                                             <*> serverIpOption
-                                            <*> serverPortOption) "Logs user into the remote server." )
+                                            <*> serverPortOption) "Lock a file." )
                        <> command "unlock"
                                    (withInfo ( doUnlockFile
                                             <$> argument str (metavar "fName")
                                             <*> serverIpOption
-                                            <*> serverPortOption) "Logs user into the remote server." )
+                                            <*> serverPortOption) "Unlock a file." )
                        <> command "is-locked"
                                    (withInfo ( doFileLocked
                                             <$> argument str (metavar "fName")
                                             <*> serverIpOption
-                                            <*> serverPortOption) "Logs user into the remote server." )
+                                            <*> serverPortOption) "Check if file is locked." )
                        <> command "download"
                                    (withInfo ( doDownloadFile
                                             <$> argument str (metavar "fPath")
                                             <*> serverIpOption
-                                            <*> serverPortOption) "Logs user into the remote server." )
+                                            <*> serverPortOption) "Download a file." )
                        <> command "upload"
                                    (withInfo ( doUploadFile
                                             <$> argument str (metavar "fPath")
                                             <*> serverIpOption
-                                            <*> serverPortOption) "Logs user into the remote server." )))
+                                            <*> serverPortOption) "Upload a file." )
+                       <> command "ls-dir"
+                                   (withInfo ( doLsDir
+                                            <$> serverIpOption
+                                            <*> serverPortOption) "List directories in the file system." )
+                       <> command "ls-file"
+                                   (withInfo ( doLsFile
+                                            <$> argument str (metavar "fDir")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "List files contained in a directory." )
+                       <> command "file-query"
+                                   (withInfo ( doFileQuery
+                                            <$> argument str (metavar "fPath")
+                                            <*> argument str (metavar "temp")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Init download communication." )
+                       <> command "map-file"
+                                   (withInfo ( doMapFile
+                                            <$> argument str (metavar "fPath")
+                                            <*> argument str (metavar "temp")
+                                            <*> serverIpOption
+                                            <*> serverPortOption) "Init upload communication." )))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the use-haskell service." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++

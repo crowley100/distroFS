@@ -66,19 +66,19 @@ initFileServers = do
         files2 = (FsContents name2 [])
         files3 = (FsContents name3 [])
     -- enter file server meta data
-    upsert (select  ["directory" =: name1] "FS_INFO") $ toBSON value1
-    upsert (select  ["directory" =: name2] "FS_INFO") $ toBSON value2
-    upsert (select  ["directory" =: name3] "FS_INFO") $ toBSON value3
+    repsert (select  ["directory" =: name1] "FS_INFO") $ toBSON value1
+    repsert (select  ["directory" =: name2] "FS_INFO") $ toBSON value2
+    repsert (select  ["directory" =: name3] "FS_INFO") $ toBSON value3
     -- specify file server contents
-    upsert (select  ["dirName" =: name1] "CONTENTS_RECORD") $ toBSON files1
-    upsert (select  ["dirName" =: name2] "CONTENTS_RECORD") $ toBSON files2
-    upsert (select  ["dirName" =: name3] "CONTENTS_RECORD") $ toBSON files3
+    repsert (select  ["dirName" =: name1] "CONTENTS_RECORD") $ toBSON files1
+    repsert (select  ["dirName" =: name2] "CONTENTS_RECORD") $ toBSON files2
+    repsert (select  ["dirName" =: name3] "CONTENTS_RECORD") $ toBSON files3
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting directory-service."
-  initFileServers -- possible changes here!
   let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
+  initFileServers -- possible changes here!
   runSettings settings app
 
 app :: Application
