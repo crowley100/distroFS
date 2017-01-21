@@ -160,11 +160,11 @@ doUploadFile fPath h p = do
 -- directory service commands
 doLsDir :: Maybe String -> Maybe String -> IO ()
 doLsDir h p = do
-   doCall lsDir h p
+   doCall lsDir h (Just "8000")
 
 doLsFile :: String -> Maybe String -> Maybe String -> IO ()
 doLsFile dirName h p = do
-  getFiles <- myDoCall (lsFile $ Just dirName) h p
+  getFiles <- myDoCall (lsFile $ Just dirName) h (Just "8000")
   case getFiles of
     Left err -> do
       putStrLn "error listing files..."
@@ -177,12 +177,26 @@ doLsFile dirName h p = do
 -- can combine this logic with download when integrating
 doFileQuery :: String -> String -> Maybe String -> Maybe String -> IO ()
 doFileQuery fileName dirName h p = do
-  getRef <- myDoCall (fileQuery $ Message fileName dirName) h p
+  getRef <- myDoCall (fileQuery $ Message fileName dirName) h (Just "8000")
+  case getRef of
+    Left err -> do
+      putStrLn "error querying file..."
+    Right ((FileRef fPath fID fsIP fsPort):_) -> do
+      -- integrate download here!
+      putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+
 
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
-  getMapping <- myDoCall (mapFile $ Message fileName dirName) h p
+  getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just "8000")
+  case getMapping of
+    Left err -> do
+      putStrLn "error mapping file..."
+    Right ((FileRef fPath fID fsIP fsPort):_) -> do
+      -- integrate upload here!
+      putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+
 -- | The options handling
 
 -- First we invoke the options on the entry point.

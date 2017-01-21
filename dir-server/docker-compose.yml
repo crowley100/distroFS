@@ -10,7 +10,7 @@ dir-server:
     # - http_proxy=http://www-proxy.scss.tcd.ie:8080
   command: /usr/local/bin/dir-server-exe
   ports:
-    - "8080:8080"
+    - "8000:8000"
   links:
     - database
 database:
