@@ -121,12 +121,15 @@ dirService = lsDir
     mapFile :: Message -> Handler [FileRef]
     mapFile val@(Message fName fDir) = liftIO $ do
       warnLog $ "Client mapping file ["++fName++"] in directory: " ++ fDir
+      currentTime <- getCurrentTime
+      let myTime = (show currentTime)
       withMongoDbConnection $ do
         let filepath = (fName ++ fDir)
         docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
         case result of
-          (ref:_) -> return [ref]
+          ((FileRef somePath someID t someIP somePort):_) -> do
+            return [(FileRef somePath someID myTime someIP somePort)]
           [] -> do
             fsInfo <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
             let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
@@ -149,10 +152,10 @@ dirService = lsDir
                         newID = (show ((read myID) + 1))
                     let value = FileID dirName newID
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                    return [(FileRef filepath retID ip port)]
+                    return [(FileRef filepath retID myTime ip port)]
                   [] -> liftIO $ do
                     let retID = "0"
                         newID = "1"
                     let value = FileID fDir newID
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                    return [(FileRef filepath retID ip port)]
+                    return [(FileRef filepath retID myTime ip port)]

@@ -8,7 +8,7 @@ module Lib
     ) where
 
 import           Control.Monad                      (join, when)
-import           Data.List
+import qualified Data.List                          as DL
 import           Distribution.PackageDescription.TH
 import           Git.Embed
 import           Network.HTTP.Client                (defaultManagerSettings,
@@ -66,10 +66,10 @@ instance PrintResponse ResponseData where
 instance PrintResponse [Message] where
   resp [] = "No messages."
   resp [x] = "Response is a single message: " ++ message x
-  resp rs = "Response is an array with messages: " ++ (intercalate ", " $ map message rs)
+  resp rs = "Response is an array with messages: " ++ (DL.intercalate ", " $ DL.map message rs)
 
 instance PrintResponse [ResponseData] where
-  resp rs = "Response is an array with values: " ++ (intercalate ", " $ map response rs)
+  resp rs = "Response is an array with values: " ++ (DL.intercalate ", " $ DL.map response rs)
 
 instance PrintResponse Bool where
   resp True =  "Response is a boolean : Totally!"
@@ -81,7 +81,7 @@ instance PrintResponse FsContents where
 instance PrintResponse [FsContents] where
   resp [] = "end."
   resp [x] = "Response is a single message: " ++ dirName x
-  resp rs = "Response is an array with values: " ++ (intercalate ", " $ map dirName rs)
+  resp rs = "Response is an array with values: " ++ (DL.intercalate ", " $ DL.map dirName rs)
 
 -- | Command line option handlers, one for each command
 -- These are called from the options parsing and do the actuall work of the program.
@@ -172,7 +172,7 @@ doLsFile dirName h p = do
       case files of
         [] -> do putStrLn "directory empty..."
         [x] -> do putStrLn $ "Files: " ++ x
-        xs -> do putStrLn $ "Files: " ++ (intercalate "\n " xs)
+        xs -> do putStrLn $ "Files: " ++ (DL.intercalate "\n " xs)
 
 -- can combine this logic with download when integrating
 doFileQuery :: String -> String -> Maybe String -> Maybe String -> IO ()
@@ -181,7 +181,7 @@ doFileQuery fileName dirName h p = do
   case getRef of
     Left err -> do
       putStrLn "error querying file..."
-    Right ((FileRef fPath fID fsIP fsPort):_) -> do
+    Right ((FileRef fPath fID "time" fsIP fsPort):_) -> do
       -- integrate download here!
       putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
 
@@ -193,7 +193,7 @@ doMapFile fileName dirName h p = do
   case getMapping of
     Left err -> do
       putStrLn "error mapping file..."
-    Right ((FileRef fPath fID fsIP fsPort):_) -> do
+    Right ((FileRef fPath fID "time" fsIP fsPort):_) -> do
       -- integrate upload here!
       putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
 
