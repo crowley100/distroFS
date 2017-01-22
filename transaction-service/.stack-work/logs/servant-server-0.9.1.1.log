@@ -1,0 +1,21 @@
+Configuring servant-server-0.9.1.1...
+Building servant-server-0.9.1.1...
+Preprocessing library servant-server-0.9.1.1...
+[ 1 of 10] Compiling Servant.Server.Internal.Context ( src/Servant/Server/Internal/Context.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Internal/Context.o )
+[ 2 of 10] Compiling Servant.Server.Internal.ServantErr ( src/Servant/Server/Internal/ServantErr.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Internal/ServantErr.o )
+[ 3 of 10] Compiling Servant.Server.Internal.RoutingApplication ( src/Servant/Server/Internal/RoutingApplication.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Internal/RoutingApplication.o )
+[ 4 of 10] Compiling Servant.Server.Internal.BasicAuth ( src/Servant/Server/Internal/BasicAuth.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Internal/BasicAuth.o )
+[ 5 of 10] Compiling Servant.Server.Internal.Router ( src/Servant/Server/Internal/Router.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Internal/Router.o )
+[ 6 of 10] Compiling Servant.Server.Internal ( src/Servant/Server/Internal.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Internal.o )
+[ 7 of 10] Compiling Servant.Server   ( src/Servant/Server.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server.o )
+[ 8 of 10] Compiling Servant.Utils.StaticFiles ( src/Servant/Utils/StaticFiles.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Utils/StaticFiles.o )
+[ 9 of 10] Compiling Servant          ( src/Servant.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant.o )
+[10 of 10] Compiling Servant.Server.Experimental.Auth ( src/Servant/Server/Experimental/Auth.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Servant/Server/Experimental/Auth.o )
+Preprocessing executable 'greet' for servant-server-0.9.1.1...
+[1 of 1] Compiling Main             ( example/greet.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/greet/greet-tmp/Main.o )
+Linking .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/greet/greet ...
+Installing library in
+/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux/lts-7.16/8.0.1/lib/x86_64-linux-ghc-8.0.1/servant-server-0.9.1.1-6bjdpPEHnI96yHlnjMHTgM
+Installing executable(s) in
+/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux/lts-7.16/8.0.1/bin
+Registering servant-server-0.9.1.1...

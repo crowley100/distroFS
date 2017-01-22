@@ -1,0 +1,16 @@
+Configuring DRBG-0.5.5...
+Building DRBG-0.5.5...
+Preprocessing library DRBG-0.5.5...
+[1 of 6] Compiling Crypto.Random.DRBG.Types ( Crypto/Random/DRBG/Types.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Crypto/Random/DRBG/Types.o )
+[2 of 6] Compiling Crypto.Random.DRBG.HashDF ( Crypto/Random/DRBG/HashDF.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Crypto/Random/DRBG/HashDF.o )
+[3 of 6] Compiling Crypto.Random.DRBG.HMAC ( Crypto/Random/DRBG/HMAC.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Crypto/Random/DRBG/HMAC.o )
+[4 of 6] Compiling Crypto.Random.DRBG.CTR ( Crypto/Random/DRBG/CTR.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Crypto/Random/DRBG/CTR.o )
+[5 of 6] Compiling Crypto.Random.DRBG.Hash ( Crypto/Random/DRBG/Hash.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Crypto/Random/DRBG/Hash.o )
+[6 of 6] Compiling Crypto.Random.DRBG ( Crypto/Random/DRBG.hs, .stack-work/dist/x86_64-linux/Cabal-1.24.0.0/build/Crypto/Random/DRBG.o )
+
+Crypto/Random/DRBG.hs:98:1: warning: [-Wdeprecations]
+    Module ‘Control.Monad.Error’ is deprecated:
+      Use Control.Monad.Except instead
+Installing library in
+/home/lorcan/.stack/snapshots/x86_64-linux/lts-7.16/8.0.1/lib/x86_64-linux-ghc-8.0.1/DRBG-0.5.5-6pNFKbjXGYw5XoGCQa3Ohb
+Registering DRBG-0.5.5...
