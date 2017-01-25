@@ -149,13 +149,13 @@ dirService = lsDir
                 case newID of
                   ((FileID dirName myID):_) -> liftIO $ do
                     let retID = myID
-                        newID = (show ((read myID) + 1))
-                    let value = FileID dirName newID
+                        updatedID = (show ((read myID) + 1))
+                    let value = FileID dirName updatedID
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                     return [(FileRef filepath retID myTime ip port)]
                   [] -> liftIO $ do
                     let retID = "0"
-                        newID = "1"
-                    let value = FileID fDir newID
+                        updatedID = "1"
+                    let value = FileID fDir updatedID
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                     return [(FileRef filepath retID myTime ip port)]

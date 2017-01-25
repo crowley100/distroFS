@@ -51,6 +51,7 @@ startApp :: IO ()
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting transaction-service."
   let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
+  -- upsert global ID: 0
   runSettings settings app
 
 app :: Application
@@ -64,24 +65,88 @@ transService = beginTransaction
           :<|> tUpload
           :<|> commit
           :<|> abort
+          :<|> readyCommit
+          :<|> confirmCommit
   where
     beginTransaction :: Handler ResponseData
     beginTransaction = liftIO $ do
-      warnLog $ "Client starting a new transaction"
+      warnLog $ "Client starting a new transaction."
+      let tRef = "globalID"
       -- check if client already has transaction on client side
-      return $ ResponseData "temp"
+      withMongoDbConnection $ do
+        iD <- find (select ["name" =: tRef] "TID_RECORD") >>= drainCursor
+        let newID = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) iD
+        case newID of
+          ((Message _ tID):_) -> liftIO $ do
+            let retID = tID
+                updatedID = (show ((read tID) + 1))
+            let value = (Message tRef updatedID)
+            withMongoDbConnection $ upsert (select  ["name" =: tRef] "TID_RECORD") $ toBSON value
+            withMongoDbConnection $ repsert (select  ["id" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
+            return $ ResponseData retID
+          [] -> liftIO $ do
+            let retID = "0"
+                updatedID = "1"
+            let value = (Message tRef updatedID)
+            withMongoDbConnection $ upsert (select  ["name" =: tRef] "TID_RECORD") $ toBSON value
+            withMongoDbConnection $ repsert (select  ["id" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
+            return $ ResponseData retID
 
     tUpload :: FileTransaction -> Handler Bool
-    tUpload (FileTransaction transID fileRef fContents) = liftIO $ do
-      warnLog $ "Client uploading a modification to the transaction"
-      return True
+    tUpload (FileTransaction transID change@(Modification (FileRef fp _ _ _ _) _)) = liftIO $ do
+      warnLog $ "Client uploading a modification to the transaction."
+      withMongoDbConnection $ do
+        findTrans <- find (select ["id" =: transID] "TRANSACTION_RECORD") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
+        case myTrans of
+          ((Transaction someID changes paths):_) -> liftIO $ do
+            let newT = Transaction someID (changes ++ [change]) (paths ++ [fp])
+            withMongoDbConnection $ upsert (select  ["id" =: someID] "TRANSACTION_RECORD") $ toBSON newT
+            return True
+          [] -> liftIO $ do
+            return False
 
     commit :: String -> Handler Bool
     commit transID = liftIO $ do
-      warnLog $ "Client committing modifications in the transaction"
+      warnLog $ "Client committing modifications in the transaction."
+      -- initiate phase 2: talk to file servers
       return True
 
     abort :: String -> Handler Bool
     abort transID = liftIO $ do
-      warnLog $ "Client aborting modifications in the transaction"
+      warnLog $ "Client aborting modifications in the transaction."
+      withMongoDbConnection $ delete (select  ["id" =: transID] "TRANSACTION_RECORD")
       return True
+
+    readyCommit :: Message -> Handler Bool
+    readyCommit (Message tID fPath) = liftIO $ do
+      warnLog (tID ++ ": [" ++ fPath ++ "] ready to be committed.")
+      withMongoDbConnection $ do
+        findTrans <- find (select ["id" =: tID] "TRANSACTION_RECORD") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
+        case myTrans of
+          ((Transaction someID changes paths):_) -> liftIO $ do
+            let newPaths = readyUp paths [] fPath
+            case newPaths of
+              [] -> liftIO $ do
+                warnLog $ "All servers ready to commit, broadcast response"
+                -- BROADCAST RESPONSE!! myDoCall...
+              otherwise -> liftIO $ do
+                warnLog $ "Ready to commit: " ++ fPath
+            let newT = Transaction someID changes newPaths
+            withMongoDbConnection $ upsert (select  ["id" =: someID] "TRANSACTION_RECORD") $ toBSON newT
+            return True
+          [] -> liftIO $ do
+            return False
+
+    -- functionality to be determined... (WORK HERE!)
+    confirmCommit :: Message -> Handler Bool
+    confirmCommit (Message tID fPath) = liftIO $ do
+      warnLog (tID ++ ": [" ++ fPath ++ "] has been committed.")
+      return True
+
+-- helper functions
+readyUp :: [String] -> [String] -> String -> [String]
+readyUp (h:t) result fp | (h == fp) = (result ++ t)
+                        | otherwise = readyUp t (result ++ [h]) fp
+readyUp [] result _ = result
