@@ -50,7 +50,7 @@ import           UseHaskellAPIServer
 startApp :: IO ()
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting transaction-service."
-  let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
+  let settings = setPort 8001 $ setLogger aplogger defaultSettings -- port change?
   -- upsert global ID: 0
   runSettings settings app
 
@@ -82,26 +82,26 @@ transService = beginTransaction
                 updatedID = (show ((read tID) + 1))
             let value = (Message tRef updatedID)
             withMongoDbConnection $ upsert (select  ["name" =: tRef] "TID_RECORD") $ toBSON value
-            withMongoDbConnection $ repsert (select  ["id" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
+            withMongoDbConnection $ repsert (select  ["transID" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
             return $ ResponseData retID
           [] -> liftIO $ do
             let retID = "0"
                 updatedID = "1"
             let value = (Message tRef updatedID)
             withMongoDbConnection $ upsert (select  ["name" =: tRef] "TID_RECORD") $ toBSON value
-            withMongoDbConnection $ repsert (select  ["id" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
+            withMongoDbConnection $ repsert (select  ["transID" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
             return $ ResponseData retID
 
     tUpload :: FileTransaction -> Handler Bool
     tUpload (FileTransaction transID change@(Modification (FileRef fp _ _ _ _) _)) = liftIO $ do
       warnLog $ "Client uploading a modification to the transaction."
       withMongoDbConnection $ do
-        findTrans <- find (select ["id" =: transID] "TRANSACTION_RECORD") >>= drainCursor
+        findTrans <- find (select ["transID" =: transID] "TRANSACTION_RECORD") >>= drainCursor
         let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
         case myTrans of
           ((Transaction someID changes paths):_) -> liftIO $ do
             let newT = Transaction someID (changes ++ [change]) (paths ++ [fp])
-            withMongoDbConnection $ upsert (select  ["id" =: someID] "TRANSACTION_RECORD") $ toBSON newT
+            withMongoDbConnection $ upsert (select  ["transID" =: someID] "TRANSACTION_RECORD") $ toBSON newT
             return True
           [] -> liftIO $ do
             return False
@@ -115,14 +115,14 @@ transService = beginTransaction
     abort :: String -> Handler Bool
     abort transID = liftIO $ do
       warnLog $ "Client aborting modifications in the transaction."
-      withMongoDbConnection $ delete (select  ["id" =: transID] "TRANSACTION_RECORD")
+      withMongoDbConnection $ delete (select  ["transID" =: transID] "TRANSACTION_RECORD")
       return True
 
     readyCommit :: Message -> Handler Bool
     readyCommit (Message tID fPath) = liftIO $ do
       warnLog (tID ++ ": [" ++ fPath ++ "] ready to be committed.")
       withMongoDbConnection $ do
-        findTrans <- find (select ["id" =: tID] "TRANSACTION_RECORD") >>= drainCursor
+        findTrans <- find (select ["transID" =: tID] "TRANSACTION_RECORD") >>= drainCursor
         let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
         case myTrans of
           ((Transaction someID changes paths):_) -> liftIO $ do
@@ -134,7 +134,7 @@ transService = beginTransaction
               otherwise -> liftIO $ do
                 warnLog $ "Ready to commit: " ++ fPath
             let newT = Transaction someID changes newPaths
-            withMongoDbConnection $ upsert (select  ["id" =: someID] "TRANSACTION_RECORD") $ toBSON newT
+            withMongoDbConnection $ upsert (select  ["transID" =: someID] "TRANSACTION_RECORD") $ toBSON newT
             return True
           [] -> liftIO $ do
             return False

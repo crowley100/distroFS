@@ -152,6 +152,7 @@ doDownloadFile fPath h p = do
     Right ((Message file_path text):rest) ->
       writeFile file_path text
 
+-- check if transaction currently active
 doUploadFile :: String -> Maybe String -> Maybe String -> IO ()
 doUploadFile fPath h p = do
   contents <- readFile fPath
@@ -196,6 +197,27 @@ doMapFile fileName dirName h p = do
     Right ((FileRef fPath fID "time" fsIP fsPort):_) -> do
       -- integrate upload here!
       putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+
+-- transaction service commands
+doBeginTrans :: Maybe String -> Maybe String -> IO ()
+doBeginTrans h p = do
+  getTransID <- myDoCall beginTransaction h (Just "8001")
+  case getTransID of
+    Left err -> do
+      putStrLn "error obtaining transaction id..."
+    Right (ResponseData tID) -> do
+      putStrLn ("tID: " ++ tID)
+      -- store tID in client db
+
+doCommit :: Maybe String -> Maybe String -> IO ()
+doCommit h p = do
+  -- fetch tID from client db
+  putStrLn $ "temp"
+
+doAbort :: Maybe String -> Maybe String -> IO ()
+doAbort h p = do
+  -- fetch tID from client db
+  putStrLn $ "temp"
 
 -- | The options handling
 
@@ -307,6 +329,18 @@ opts = do
                                             <$> argument str (metavar "fPath")
                                             <*> argument str (metavar "temp")
                                             <*> serverIpOption
+                                            <*> serverPortOption) "Init upload communication." )
+                       <> command "begin-transaction"
+                                   (withInfo ( doBeginTrans
+                                            <$> serverIpOption
+                                            <*> serverPortOption) "Init upload communication." )
+                       <> command "commit"
+                                   (withInfo ( doCommit
+                                            <$> serverIpOption
+                                            <*> serverPortOption) "Init upload communication." )
+                       <> command "abort"
+                                   (withInfo ( doAbort
+                                            <$> serverIpOption
                                             <*> serverPortOption) "Init upload communication." )))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the use-haskell service." ++
