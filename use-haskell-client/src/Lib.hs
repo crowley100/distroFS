@@ -8,9 +8,15 @@ module Lib
     ) where
 
 import           Control.Monad                      (join, when)
+import           Control.Monad.IO.Class
 import qualified Data.List                          as DL
 import           Distribution.PackageDescription.TH
 import           Git.Embed
+import           System.IO
+import           Data.Maybe
+import           Control.Monad.Trans.Resource
+import           Data.Bson.Generic
+import           GHC.Generics
 import           Network.HTTP.Client                (defaultManagerSettings,
                                                      newManager)
 import           Options.Applicative
@@ -21,6 +27,8 @@ import           System.Environment
 import           UseHaskellAPI
 import           UseHaskellAPIClient
 import           RSAhelpers
+import           Data.Text (pack, unpack)
+import           Database.MongoDB
 
 -- | to embed git and cabal details for this build into the executable (just for the fun of it)
 -- The code inside $( ) gets run at compile time. The functions run extract data from project files, both .git files and
@@ -202,22 +210,58 @@ doMapFile fileName dirName h p = do
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
 doBeginTrans h p = do
   getTransID <- myDoCall beginTransaction h (Just "8001")
+  let owner = "clientTransaction" :: String
   case getTransID of
     Left err -> do
-      putStrLn "error obtaining transaction id..."
+      putStrLn "error obtaining transaction ID..."
     Right (ResponseData tID) -> do
-      putStrLn ("tID: " ++ tID)
+      putStrLn ("New transaction ID: " ++ tID)
       -- store tID in client db
+      withClientMongoDbConnection $ do
+        findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+        case myTrans of
+          ((CurrentTrans _ oldTID):_) -> liftIO $ do
+            putStrLn "Aborting current transaction and starting new one..."
+            -- tell transaction server to abort previous transaction
+            doCall (abort oldTID) h (Just "8001")
+            -- set transaction boolean to true ?? or just db entry existence as check...
+            withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
+          [] -> liftIO $ do
+            putStrLn "starting new transaction..."
+            -- set transaction boolean to true ?? or just db entry existence as check...
+            withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
 
+
+-- fetch tID from client db, talk to transaction server, remove ID from db
 doCommit :: Maybe String -> Maybe String -> IO ()
 doCommit h p = do
-  -- fetch tID from client db
-  putStrLn $ "temp"
+  let owner = "clientTransaction" :: String
+  withClientMongoDbConnection $ do
+    findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+    let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+    case myTrans of
+      ((CurrentTrans _ tID):_) -> liftIO $ do
+        putStrLn "Committing current transaction..."
+        doCall (commit tID) h (Just "8001")
+        withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
+      [] -> liftIO $ do
+        putStrLn "No active transactions..."
 
+-- fetch tID from client db, talk to transaction server, remove ID from db
 doAbort :: Maybe String -> Maybe String -> IO ()
 doAbort h p = do
-  -- fetch tID from client db
-  putStrLn $ "temp"
+  let owner = "clientTransaction" :: String
+  withClientMongoDbConnection $ do
+    findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+    let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+    case myTrans of
+      ((CurrentTrans _ tID):_) -> liftIO $ do
+        putStrLn "Aborting current transaction..."
+        doCall (abort tID) h (Just "8001")
+        withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
+      [] -> liftIO $ do
+        putStrLn "No active transactions..."
 
 -- | The options handling
 
@@ -333,15 +377,15 @@ opts = do
                        <> command "begin-transaction"
                                    (withInfo ( doBeginTrans
                                             <$> serverIpOption
-                                            <*> serverPortOption) "Init upload communication." )
+                                            <*> serverPortOption) "Start a new transaction." )
                        <> command "commit"
                                    (withInfo ( doCommit
                                             <$> serverIpOption
-                                            <*> serverPortOption) "Init upload communication." )
+                                            <*> serverPortOption) "Commit current transaction." )
                        <> command "abort"
                                    (withInfo ( doAbort
                                             <$> serverIpOption
-                                            <*> serverPortOption) "Init upload communication." )))
+                                            <*> serverPortOption) "Abort current transaction." )))
              (  fullDesc
              <> progDesc (progName ++ " is a simple test client for the use-haskell service." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++
@@ -353,6 +397,16 @@ opts = do
                           "source < (" ++ progName ++ " --bash-completion-script `which " ++ progName ++ "`)" ++
                           resetCode )
              <> header  (redCode ++ "Git revision : " ++ gitRev ++ ", branch: " ++ gitBranch ++ resetCode))
+
+-- MongoDB client info
+withClientMongoDbConnection :: Action IO a -> IO a
+withClientMongoDbConnection act  = do
+  let port = 27017
+      database = "USEHASKELLDB"
+  pipe <- connect (host "127.0.0.1")
+  ret <- runResourceT $ liftIO $ access pipe master (pack database) act
+  close pipe
+  return ret
 
 -- helpers to simplify the creation of command line options
 withInfo :: Parser a -> String -> ParserInfo a

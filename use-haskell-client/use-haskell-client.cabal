@@ -5,9 +5,9 @@ description:         Please see README.md
 homepage:            https://github.com/esjmb/use-haskell-client#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Stephen Barrett
-maintainer:          Stephen.Barrett@tcd.ie
-copyright:           Copyright (C) 2016
+author:              Lorcan Reidy
+maintainer:          loreidy@tcd.ie
+copyright:           Copyright (C) 2017
 category:            test
 build-type:          Simple
 extra-source-files:  README.md
@@ -27,6 +27,12 @@ library
                      , Cabal
                      , ansi-terminal
                      , git-embed
+                     , mongoDB
+                     , bson
+                     , bson-generic
+                     , resourcet
+                     , bytestring
+                     , text
   default-language:    Haskell2010
 
 executable use-haskell-client-exe
