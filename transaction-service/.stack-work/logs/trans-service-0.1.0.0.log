@@ -1,0 +1,21 @@
+Configuring trans-service-0.1.0.0...
+Preprocessing library trans-service-0.1.0.0...
+[1 of 1] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Lib.o )
+
+src/Lib.hs:85:37: warning: [-Wdeprecations]
+    In the use of ‘repsert’
+    (imported from Database.MongoDB, but defined in Database.MongoDB.Query):
+    Deprecated: "use upsert instead"
+
+src/Lib.hs:92:37: warning: [-Wdeprecations]
+    In the use of ‘repsert’
+    (imported from Database.MongoDB, but defined in Database.MongoDB.Query):
+    Deprecated: "use upsert instead"
+Preprocessing executable 'trans-service-exe' for trans-service-0.1.0.0...
+[1 of 1] Compiling Main             ( app/Main.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/trans-service-exe/trans-service-exe-tmp/Main.o )
+Linking .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/trans-service-exe/trans-service-exe ...
+Installing library in
+/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/trans-service-0.1.0.0-9OwqRg7XVgmIU2NezbR8ln
+Installing executable(s) in
+/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/bin
+Registering trans-service-0.1.0.0...

@@ -10,10 +10,10 @@ file-server:
     # - http_proxy=http://www-proxy.scss.tcd.ie:8080
   command: /usr/local/bin/file-server-exe
   ports:
-    - "8080:8080"
+    - "8081:8081"
   links:
     - database
 database:
   image: mongo:3.0.2
   ports:
-    - "27017:27017"
+    - "27013:27017"

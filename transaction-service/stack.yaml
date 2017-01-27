@@ -15,10 +15,10 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-7.16
+resolver: lts-7.10
 
 docker:
-  enable: false # warning!
+  enable: true # warning!
 
 image:
   container:
@@ -50,7 +50,7 @@ packages:
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
   - location:
       git: https://github.com/crowley100/my_distro_API.git
-      commit: 4fc201a21b051c2af1a760bd6c347f1dfb4f28f7
+      commit: 6d6e2cc444236c99c749d219a7cb86ace40d03de
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps: [servant-client-0.9.1.1, servant-0.9.1.1, servant-server-0.9.1.1, http-api-data-0.3.2]

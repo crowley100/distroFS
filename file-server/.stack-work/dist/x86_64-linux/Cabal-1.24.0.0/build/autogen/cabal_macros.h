@@ -210,7 +210,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "file-server-0.1.0.0-1D2NwsQVPpvFp3Xs4p7JNZ"
+#define CURRENT_COMPONENT_ID "file-server-0.1.0.0-CBbArhdIbJFDScFW0jLLBV"
 
-#define CURRENT_PACKAGE_KEY "file-server-0.1.0.0-1D2NwsQVPpvFp3Xs4p7JNZ"
+#define CURRENT_PACKAGE_KEY "file-server-0.1.0.0-CBbArhdIbJFDScFW0jLLBV"
 

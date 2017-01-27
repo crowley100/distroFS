@@ -50,7 +50,7 @@ import           UseHaskellAPIServer
 startApp :: IO ()
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting transaction-service."
-  let settings = setPort 8001 $ setLogger aplogger defaultSettings -- port change?
+  let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
   -- upsert global ID: 0
   runSettings settings app
 

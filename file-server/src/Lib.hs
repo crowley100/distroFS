@@ -50,7 +50,7 @@ import           UseHaskellAPIServer
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting file-service."
-  let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change!!!
+  let settings = setPort 8081 $ setLogger aplogger defaultSettings -- port change!!!
   runSettings settings app
 
 app :: Application

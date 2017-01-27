@@ -92,6 +92,7 @@ dirService = lsDir
         :<|> lsFile
         :<|> fileQuery
         :<|> mapFile
+
   where
     lsDir :: Handler [FsContents]
     lsDir = liftIO $ do

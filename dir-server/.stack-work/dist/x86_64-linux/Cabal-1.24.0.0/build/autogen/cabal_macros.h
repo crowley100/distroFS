@@ -56,8 +56,8 @@
   (major1) == 1 && (major2) <  2 || \
   (major1) == 1 && (major2) == 2 && (minor) <= 10)
 
-/* package http-client-0.4.31.2 */
-#define VERSION_http_client "0.4.31.2"
+/* package http-client-0.4.31.1 */
+#define VERSION_http_client "0.4.31.1"
 #define MIN_VERSION_http_client(major1,major2,minor) (\
   (major1) <  0 || \
   (major1) == 0 && (major2) <  4 || \
@@ -210,7 +210,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "dir-server-0.1.0.0-7GM8X08wsex4sZinZNb5S9"
+#define CURRENT_COMPONENT_ID "dir-server-0.1.0.0-Eb6L12FdEkC66SWvXmEphx"
 
-#define CURRENT_PACKAGE_KEY "dir-server-0.1.0.0-7GM8X08wsex4sZinZNb5S9"
+#define CURRENT_PACKAGE_KEY "dir-server-0.1.0.0-Eb6L12FdEkC66SWvXmEphx"
 

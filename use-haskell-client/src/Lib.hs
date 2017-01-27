@@ -171,7 +171,7 @@ doUploadFile fPath h p = do
     case myTrans of
       ((CurrentTrans _ tID):_) -> liftIO $ do
         putStrLn "Pushing modification to transaction server..."
-        
+
       [] -> liftIO $ do
         putStrLn "Uploading file to file server..."
         doCall (upload $  Message fPath contents) h p
@@ -200,10 +200,19 @@ doFileQuery fileName dirName h p = do
   case getRef of
     Left err -> do
       putStrLn "error querying file..."
-    Right ((FileRef fPath fID "time" fsIP fsPort):_) -> do
-      -- integrate download here!
-      putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
-
+    Right res -> do
+      case res of
+        ((FileRef fPath fID "time" fsIP fsPort):_) -> do
+          putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+          -- integrate download here!
+          getFile <- myDoCall (download $ Just fID) (Just fsIP) (Just fsPort)
+          case getFile of
+            Left err -> do
+              putStrLn "error retrieving file..."
+            Right ((Message file_path text):rest) ->
+              writeFile fileName text -- use global file name (rather than ID)
+        [] -> do
+          putStrLn (fileName ++ " does not exist in " ++ dirName)
 
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
@@ -212,9 +221,24 @@ doMapFile fileName dirName h p = do
   case getMapping of
     Left err -> do
       putStrLn "error mapping file..."
-    Right ((FileRef fPath fID "time" fsIP fsPort):_) -> do
-      -- integrate upload here!
+    Right (ref@(FileRef fPath fID "time" fsIP fsPort):_) -> do
       putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+      -- integrate upload here!
+      let owner = "clientTransaction" :: String
+      contents <- readFile fileName
+      -- check if transaction in progress
+      withClientMongoDbConnection $ do
+        findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+        case myTrans of
+          ((CurrentTrans _ tID):_) -> liftIO $ do
+            putStrLn "Pushing modification to transaction server..."
+            let update = (Modification ref contents)
+            let fileT = (FileTransaction tID update)
+            doCall (tUpload fileT) h (Just "8001")
+          [] -> liftIO $ do
+            putStrLn "Uploading file to file server..."
+            doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
 
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
