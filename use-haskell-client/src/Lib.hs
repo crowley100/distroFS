@@ -160,11 +160,21 @@ doDownloadFile fPath h p = do
     Right ((Message file_path text):rest) ->
       writeFile file_path text
 
--- check if transaction currently active
 doUploadFile :: String -> Maybe String -> Maybe String -> IO ()
 doUploadFile fPath h p = do
+  let owner = "clientTransaction" :: String
   contents <- readFile fPath
-  doCall (upload $  Message fPath contents) h p
+  -- check if transaction in progress
+  withClientMongoDbConnection $ do
+    findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+    let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+    case myTrans of
+      ((CurrentTrans _ tID):_) -> liftIO $ do
+        putStrLn "Pushing modification to transaction server..."
+        
+      [] -> liftIO $ do
+        putStrLn "Uploading file to file server..."
+        doCall (upload $  Message fPath contents) h p
 
 -- directory service commands
 doLsDir :: Maybe String -> Maybe String -> IO ()
