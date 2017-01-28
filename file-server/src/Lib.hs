@@ -62,9 +62,11 @@ api = Proxy
 fileService :: Server FileAPI
 fileService = download
          :<|> upload
-
-  where -- using Message type to send (fPath, fConents)
-    download :: Maybe String -> Handler [Message] -- ResponseData?
+         :<|> updateShadowDB
+         :<|> pushTransaction
+  where
+    -- using Message type to send (fPath, fConents)
+    download :: Maybe String -> Handler [Message]
     download (Just fPath) = liftIO $ do
       warnLog $ "Attempting to download file: [" ++ fPath ++ "] from db."
       withMongoDbConnection $ do
@@ -78,6 +80,31 @@ fileService = download
     -- lock here prior to upload of file
     upload :: Message -> Handler Bool
     upload myFile@(Message fPath _) = liftIO $ do
-      warnLog $ "Uploading file to db: [" ++ fPath ++ "]"
+      warnLog $ "Uploading file to db: [" ++ fPath ++ "]."
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       return True
+
+    updateShadowDB :: ShadowInfo -> Handler Bool
+    updateShadowDB shadowEntry@(ShadowInfo tID fPath _) = liftIO $ do
+      warnLog $ "Entering [" ++ fPath ++ "] to ready to commit state."
+      withMongoDbConnection $ upsert (select ["trID" =: tID] "SHADOW_RECORD") $ toBSON shadowEntry
+      return True
+
+    -- create a new Message type for each file change
+    pushTransaction :: String -> Handler Bool
+    pushTransaction tID = liftIO $ do
+      warnLog $ "Moving shadow entries for [" ++ tID ++ "] to storage."
+      entries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
+      let shadows = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) entries
+      commit shadows
+      return True
+
+-- helper functions
+-- pushes changes for a particular transaction
+commit :: [ShadowInfo] -> IO ()
+commit [] = do
+  warnLog$ "Nothing left to commit"
+commit ((ShadowInfo _ fPath fContents):rest) = do
+  let newEntry = (Message fPath fContents)
+  withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON newEntry
+  commit rest

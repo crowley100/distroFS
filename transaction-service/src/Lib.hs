@@ -72,7 +72,6 @@ transService = beginTransaction
     beginTransaction = liftIO $ do
       warnLog $ "Client starting a new transaction."
       let tRef = "globalID"
-      -- check if client already has transaction on client side
       withMongoDbConnection $ do
         iD <- find (select ["name" =: tRef] "TID_RECORD") >>= drainCursor
         let newID = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) iD

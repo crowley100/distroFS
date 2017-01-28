@@ -236,7 +236,7 @@ doMapFile fileName dirName h p = do
             putStrLn "Pushing modification to transaction server..."
             let update = (Modification ref contents)
             let fileT = (FileTransaction tID update)
-            doCall (tUpload fileT) h (Just "8001")
+            doCall (tUpload fileT) h (Just "8080")
           [] -> liftIO $ do
             putStrLn "Uploading file to file server..."
             doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
@@ -244,7 +244,7 @@ doMapFile fileName dirName h p = do
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
 doBeginTrans h p = do
-  getTransID <- myDoCall beginTransaction h (Just "8001")
+  getTransID <- myDoCall beginTransaction h (Just "8080")
   let owner = "clientTransaction" :: String
   case getTransID of
     Left err -> do
@@ -259,7 +259,7 @@ doBeginTrans h p = do
           ((CurrentTrans _ oldTID):_) -> liftIO $ do
             putStrLn "Aborting current transaction and starting new one..."
             -- tell transaction server to abort previous transaction
-            doCall (abort oldTID) h (Just "8001")
+            doCall (abort oldTID) h (Just "8080")
             -- set transaction boolean to true ?? or just db entry existence as check...
             withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
           [] -> liftIO $ do
@@ -278,7 +278,7 @@ doCommit h p = do
     case myTrans of
       ((CurrentTrans _ tID):_) -> liftIO $ do
         putStrLn "Committing current transaction..."
-        doCall (commit tID) h (Just "8001")
+        doCall (commit tID) h (Just "8080")
         withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
       [] -> liftIO $ do
         putStrLn "No active transactions..."
@@ -293,7 +293,7 @@ doAbort h p = do
     case myTrans of
       ((CurrentTrans _ tID):_) -> liftIO $ do
         putStrLn "Aborting current transaction..."
-        doCall (abort tID) h (Just "8001")
+        doCall (abort tID) h (Just "8080")
         withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
       [] -> liftIO $ do
         putStrLn "No active transactions..."
@@ -400,13 +400,13 @@ opts = do
                        <> command "file-query"
                                    (withInfo ( doFileQuery
                                             <$> argument str (metavar "fPath")
-                                            <*> argument str (metavar "temp")
+                                            <*> argument str (metavar "fDir")
                                             <*> serverIpOption
                                             <*> serverPortOption) "Init download communication." )
                        <> command "map-file"
                                    (withInfo ( doMapFile
                                             <$> argument str (metavar "fPath")
-                                            <*> argument str (metavar "temp")
+                                            <*> argument str (metavar "fDir")
                                             <*> serverIpOption
                                             <*> serverPortOption) "Init upload communication." )
                        <> command "begin-transaction"
