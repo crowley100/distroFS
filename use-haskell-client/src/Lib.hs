@@ -221,12 +221,13 @@ doMapFile fileName dirName h p = do
   case getMapping of
     Left err -> do
       putStrLn "error mapping file..."
-    Right (ref@(FileRef fPath fID "time" fsIP fsPort):_) -> do
+    Right (ref@(FileRef fPath fID myTime fsIP fsPort):_) -> do
       putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
       -- integrate upload here!
       let owner = "clientTransaction" :: String
       contents <- readFile fileName
       -- check if transaction in progress
+      putStrLn "testest1"
       withClientMongoDbConnection $ do
         findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
         let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
