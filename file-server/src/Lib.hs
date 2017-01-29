@@ -46,6 +46,7 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           UseHaskellAPIClient
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -87,6 +88,7 @@ fileService = download
     updateShadowDB :: Shadow -> Handler Bool
     updateShadowDB (Shadow tID file@(Message fPath fContents)) = liftIO $ do
       warnLog $ "Entering [" ++ fPath ++ "] to ready to commit state."
+      let retVal = (Message tID fPath)
       withMongoDbConnection $ do
         findShadow <- find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
         let myShadow = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) findShadow
@@ -97,7 +99,8 @@ fileService = download
           [] -> liftIO $ do
             let new = (ShadowInfo tID [file])
             withMongoDbConnection $ upsert (select ["trID" =: tID] "SHADOW_RECORD") $ toBSON new
-      -- SEND READY TO COMMIT
+      -- send ready to commit
+      servDoCall (readyCommit retVal) transPort
       return True
 
     -- create a new Message type for each file change
@@ -106,14 +109,14 @@ fileService = download
       warnLog $ "Moving shadow entries for [" ++ tID ++ "] to storage."
       entries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
       let ((ShadowInfo _ files):_) = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) entries
-      commit files
+      myCommit files
       return True
 
 -- helper functions
 -- pushes changes for a particular transaction
-commit :: [Message] -> IO ()
-commit [] = do
-  warnLog$ "Nothing left to commit"
-commit (entry@(Message fPath contents):rest) = do
+myCommit :: [Message] -> IO ()
+myCommit [] = do
+  warnLog $ "Nothing left to commit"
+myCommit (entry@(Message fPath contents):rest) = do
   withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON entry
-  commit rest
+  myCommit rest

@@ -139,6 +139,7 @@ transService = beginTransaction
               [] -> liftIO $ do
                 warnLog $ "All servers ready to commit, broadcast response"
                 -- BROADCAST RESPONSE!! myDoCall...
+                -- WORK HERE
               otherwise -> liftIO $ do
                 warnLog $ "Ready to commit: " ++ fPath
             let newT = Transaction someID changes newPaths
