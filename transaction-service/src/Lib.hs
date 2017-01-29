@@ -46,6 +46,7 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           UseHaskellAPIClient
 
 startApp :: IO ()
 startApp = withLogging $ \ aplogger -> do
@@ -109,7 +110,15 @@ transService = beginTransaction
     commit transID = liftIO $ do
       warnLog $ "Client committing modifications in the transaction."
       -- initiate phase 2: talk to file servers
-      return True
+      -- ALSO talk to directory server
+      withMongoDbConnection $ do
+        findTrans <- find (select ["transID" =: transID] "TRANSACTION_RECORD") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
+        case myTrans of
+          ((Transaction someID changes _):_) -> liftIO $ do
+            pushShadows someID changes
+            return True
+          [] -> return False
 
     abort :: String -> Handler Bool
     abort transID = liftIO $ do
@@ -149,3 +158,12 @@ readyUp :: [String] -> [String] -> String -> [String]
 readyUp (h:t) result fp | (h == fp) = (result ++ t)
                         | otherwise = readyUp t (result ++ [h]) fp
 readyUp [] result _ = result
+
+pushShadows :: String -> [Modification] -> IO ()
+pushShadows _ [] = warnLog $ "No more changes to push."
+pushShadows tID ((Modification (FileRef _ fID _ ip port) fContents):rest) = do
+  let newShadow = (Shadow tID (Message fID fContents))
+  try <- servDoCall (updateShadowDB newShadow) (read port)
+  case try of
+    Left err -> warnLog $ "service communication failure. (transaction -> file server)"
+    Right _ -> warnLog $ "serice communication success. (transaction -> file server)"

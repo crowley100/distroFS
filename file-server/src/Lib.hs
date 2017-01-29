@@ -84,10 +84,20 @@ fileService = download
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       return True
 
-    updateShadowDB :: ShadowInfo -> Handler Bool
-    updateShadowDB shadowEntry@(ShadowInfo tID fPath _) = liftIO $ do
+    updateShadowDB :: Shadow -> Handler Bool
+    updateShadowDB (Shadow tID file@(Message fPath fContents)) = liftIO $ do
       warnLog $ "Entering [" ++ fPath ++ "] to ready to commit state."
-      withMongoDbConnection $ upsert (select ["trID" =: tID] "SHADOW_RECORD") $ toBSON shadowEntry
+      withMongoDbConnection $ do
+        findShadow <- find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
+        let myShadow = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) findShadow
+        case myShadow of
+          ((ShadowInfo _ files):_) -> liftIO $ do
+            let new = (ShadowInfo tID (files ++ [file]))
+            withMongoDbConnection $ upsert (select ["trID" =: tID] "SHADOW_RECORD") $ toBSON new
+          [] -> liftIO $ do
+            let new = (ShadowInfo tID [file])
+            withMongoDbConnection $ upsert (select ["trID" =: tID] "SHADOW_RECORD") $ toBSON new
+      -- SEND READY TO COMMIT
       return True
 
     -- create a new Message type for each file change
@@ -95,16 +105,15 @@ fileService = download
     pushTransaction tID = liftIO $ do
       warnLog $ "Moving shadow entries for [" ++ tID ++ "] to storage."
       entries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
-      let shadows = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) entries
-      commit shadows
+      let ((ShadowInfo _ files):_) = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) entries
+      commit files
       return True
 
 -- helper functions
 -- pushes changes for a particular transaction
-commit :: [ShadowInfo] -> IO ()
+commit :: [Message] -> IO ()
 commit [] = do
   warnLog$ "Nothing left to commit"
-commit ((ShadowInfo _ fPath fContents):rest) = do
-  let newEntry = (Message fPath fContents)
-  withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON newEntry
+commit (entry@(Message fPath contents):rest) = do
+  withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON entry
   commit rest
