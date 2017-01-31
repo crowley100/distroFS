@@ -47,52 +47,58 @@ import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
 
--- ip defaulting to local host (may change to dynamically assign ips)
+type MyDirAPI = "lsDir"                   :> Get '[JSON] [FsContents]
+           :<|> "lsFile"                  :> QueryParam "name" String :> Get '[JSON] [FsContents]
+           :<|> "fileQuery"               :> ReqBody '[JSON] Message :> Get '[JSON] [FileRef]
+           :<|> "mapFile"                 :> ReqBody '[JSON] Message :> Get '[JSON] [FileRef]
+           :<|> "ping"                    :> ReqBody '[JSON] Message :> Post '[JSON] Bool
+           :<|> "registerFS"              :> ReqBody '[JSON] Message3 :> Post '[JSON] Bool
+
+-- ip defaulting to local host (currently only 2 FS running for testing purposess)
+{-
 initFileServers :: IO ()
 initFileServers = do
   warnLog $ "populating db records with default values"
   withMongoDbConnection $ do
-    let ip = "127.0.0.1"
-        name1 = "fs1"
-        name2 = "fs2"
-        name3 = "fs3"
-        port1 = read fs1Port
-        port2 = read fs2Port
-        port3 = read fs3Port
-    let value1 = (FsInfo name1 ip port1)
-        value2 = (FsInfo name2 ip port2)
-        value3 = (FsInfo name3 ip port3)
+    let server11 = FsAttributes
+        server12 = FsAttributes
+        server13 = FsAttributes
+        server21 = FsAttributes
+        server22 = FsAttributes
+        server23 = FsAttributes
+    let servers1 = FsInfo ("fs1") (server1:([server12] ++ [server]))
+        servers2 = FsInfo
+    let value1 = (FsInfo name1 ip1 port1)
+        value2 = (FsInfo name2 ip2 port2)
         files1 = (FsContents name1 [])
         files2 = (FsContents name2 [])
-        files3 = (FsContents name3 [])
     -- enter file server meta data
     upsert (select  ["directory" =: name1] "FS_INFO") $ toBSON value1
     upsert (select  ["directory" =: name2] "FS_INFO") $ toBSON value2
-    upsert (select  ["directory" =: name3] "FS_INFO") $ toBSON value3
     -- specify file server contents
     upsert (select  ["dirName" =: name1] "CONTENTS_RECORD") $ toBSON files1
-    upsert (select  ["dirName" =: name2] "CONTENTS_RECORD") $ toBSON files2
-    upsert (select  ["dirName" =: name3] "CONTENTS_RECORD") $ toBSON files3
+    upsert (select  ["dirName" =: name2] "CONTENTS_RECORD") $ toBSON files2 -}
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting directory-service."
   let settings = setPort 8000 $ setLogger aplogger defaultSettings -- port change?
-  initFileServers -- possible changes here!
+  --initFileServers -- possible changes here!
   runSettings settings app
 
 app :: Application
 app = serve api dirService
 
-api :: Proxy DirAPI
+api :: Proxy MyDirAPI
 api = Proxy
 
-dirService :: Server DirAPI
+dirService :: Server MyDirAPI
 dirService = lsDir
         :<|> lsFile
         :<|> fileQuery
         :<|> mapFile
-
+        :<|> ping
+        :<|> registerFS
   where
     lsDir :: Handler [FsContents]
     lsDir = liftIO $ do
@@ -164,3 +170,13 @@ dirService = lsDir
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                     withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
                     return [(FileRef filepath retID myTime ip port)]
+
+    -- affirm fs is still alive
+    ping :: Message -> Handler Bool
+    ping msg@(Message "thing1" "thing2") = do
+      return True
+
+    -- register a file server
+    registerFS :: Message3 -> Handler Bool
+    registerFS msg3@(Message3 "thing1" "thing2" "thing3") = do
+      return True

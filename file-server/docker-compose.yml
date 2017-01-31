@@ -2,6 +2,9 @@ file-server:
   image: file-server
   environment:
     # The start of active environment variables. Set as needed.
+    - FS_NAME=fs11
+    - FS_PORT=8081
+    # - FS_IP=10.6.80.162
     - MONGODB_IP=database
     # - MONGODB_PORT
     # - MONGODB_DATABASE=USE_HASKELL_DB

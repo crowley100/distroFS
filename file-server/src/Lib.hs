@@ -47,15 +47,22 @@ import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
 import           UseHaskellAPIClient
+import           Control.Concurrent (forkIO, threadDelay)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting file-service."
-  let settings = setPort 8081 $ setLogger aplogger defaultSettings -- port change!!!
-  runSettings settings app
+  envPort <- fsPort
+  let myPort = (read envPort) :: Int
+  let settings = setPort myPort $ setLogger aplogger defaultSettings -- port change!!!
+  newApp <- app envPort
+  runSettings settings newApp
 
-app :: Application
-app = serve api fileService
+app :: String -> IO Application
+app port = do
+  iExist port
+  forkIO $ stillAlive 3 port
+  return $ serve api fileService
 
 api :: Proxy FileAPI
 api = Proxy
@@ -116,7 +123,36 @@ fileService = download
 -- pushes changes for a particular transaction
 myCommit :: [Message] -> IO ()
 myCommit [] = do
-  warnLog $ "Nothing left to commit"
+  warnLog $ "Nothing left to commit."
 myCommit (entry@(Message fPath contents):rest) = do
   withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON entry
   myCommit rest
+
+-- keeps the directory server informed about the file server's status
+stillAlive :: Int -> String -> IO ()
+stillAlive wait port = do
+  warnLog $ "Pinging directory server."
+  servDoCall (ping (Message "localhost" port)) dirPort
+  threadDelay (wait * 1000000)
+  stillAlive wait port -- recurse
+
+-- passes file server's attributes to the directory server
+iExist :: String -> IO ()
+iExist port = do
+  warnLog "Greeting directory server."
+  myName <- fsName
+  resp <- servDoCall (registerFS (Message3 myName "localhost" port)) dirPort
+  case resp of
+    Left _ -> do
+      warnLog $ "According to the directory server, I don't exist..."
+    Right a -> do
+      let s = "myStatus"
+      case a of
+        True -> do
+          warnLog $ "I'm the primary!"
+          let status = (Message s "PRIMARY") -- could use bool
+          withMongoDbConnection $ upsert (select ["name" =: s] "STATE") $ toBSON status
+        otherwise -> do
+          warnLog $ "I'm only a replica..."
+          let status = (Message s "REPLICA") -- could use bool
+          withMongoDbConnection $ upsert (select ["name" =: s] "STATE") $ toBSON status
