@@ -114,24 +114,33 @@ dirService = lsDir
         contents <- find (select ["dirName" =: directory] "CONTENTS_RECORD") >>= drainCursor
         return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
 
-    fileQuery :: Message -> Handler [FileRef]
+    fileQuery :: Message -> Handler [SendFileRef]
     fileQuery query@(Message fName fDir) = liftIO $ do
       warnLog $ "Client querying file ["++fName++"] in directory: " ++ fDir
       withMongoDbConnection $ do
-        let filepath = (fName ++ fDir)
-        docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
-        let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+        let filepath = (fDir ++ fName)
+        findRef <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+        let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) findRef
         case result of
-          (ref:_) -> return [ref]
-          [] -> return ([] :: [FileRef]) -- Can handle empty list on client side
+          (ref@(FileRef fp fid fts):_) -> do
+            -- lookup fDir to get list of replicas
+            findFS <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
+            let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findRef
+            case servers of
+              [] -> return ([] :: [SendFileRef]) -- directory not found
+              ((FsInfo name serverList):_) -> do
+                -- process to pick a replica (load balancing - parse ip/port)
+                -- WORKING HERE
+                return [(SendFileRef fp fid fts newIp newPort)]
+          [] -> return ([] :: [SendFileRef]) -- file not found
 
-    mapFile :: Message -> Handler [FileRef]
+    mapFile :: Message -> Handler [SendFileRef]
     mapFile val@(Message fName fDir) = liftIO $ do
       warnLog $ "Client mapping file ["++fName++"] in directory: " ++ fDir
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
       withMongoDbConnection $ do
-        let filepath = (fName ++ fDir)
+        let filepath = (fDir ++ fName)
         docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
         case result of
@@ -178,5 +187,7 @@ dirService = lsDir
 
     -- register a file server
     registerFS :: Message3 -> Handler Bool
-    registerFS msg3@(Message3 "thing1" "thing2" "thing3") = do
+    registerFS msg3@(Message3 dirName fsIP fsPort) = liftIO $ do
+      warnLog $ "Registering file server associated with [" ++ dirName ++ "]"
+
       return True
