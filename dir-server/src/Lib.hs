@@ -46,6 +46,7 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           System.Random
 
 type MyDirAPI = "lsDir"                   :> Get '[JSON] [FsContents]
            :<|> "lsFile"                  :> QueryParam "name" String :> Get '[JSON] [FsContents]
@@ -123,14 +124,12 @@ dirService = lsDir
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) findRef
         case result of
           (ref@(FileRef fp fid fts):_) -> do
-            -- lookup fDir to get list of replicas
             findFS <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
             let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findRef
             case servers of
               [] -> return ([] :: [SendFileRef]) -- directory not found
               ((FsInfo name serverList):_) -> do
-                -- process to pick a replica (load balancing - parse ip/port)
-                -- WORKING HERE
+                let (FsAttributes _ newIp newPort) = (selectReplica serverList [])
                 return [(SendFileRef fp fid fts newIp newPort)]
           [] -> return ([] :: [SendFileRef]) -- file not found
 
@@ -189,5 +188,25 @@ dirService = lsDir
     registerFS :: Message3 -> Handler Bool
     registerFS msg3@(Message3 dirName fsIP fsPort) = liftIO $ do
       warnLog $ "Registering file server associated with [" ++ dirName ++ "]"
-
       return True
+
+-- helper functions
+
+-- directing reads to replicas to help with load balancing
+selectReplica :: [FsAttributes] -> [FsAttributes] -> FsAttributes
+selectReplica [] replicas = loadBalance replicas
+selectReplica [h@(FsAttributes True _ _)] [] = h
+selectReplica (h@(FsAttributes False _ _):rest) replicas = selectReplica rest (replicas ++ [h])
+selectReplica (h@(FsAttributes True _ _):rest) replicas = loadBalance (replicas ++ rest)
+
+-- simple policy to share work among replicas and primary file server
+loadBalance :: [FsAttributes] -> FsAttributes
+loadBalance [] = liftIO $ do
+  -- default action
+  warnLog $ "No file servers found, using default meta data"
+  return (FsAttributes True "localhost" "8081")
+loadBalance replicas = do
+  -- generate random index (0, replicas.length-1)
+  let size = ((length replicas) - 1)
+  index <- randomRIO (0, size)
+  return (replicas !! index)
