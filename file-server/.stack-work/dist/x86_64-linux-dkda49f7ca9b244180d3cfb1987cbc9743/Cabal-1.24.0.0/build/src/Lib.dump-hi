@@ -1,12 +1,12 @@
 
 ==================== FINAL INTERFACE ====================
-2017-01-31 00:24:09.2104325 UTC
+2017-02-03 22:45:53.480385447 UTC
 
 interface file-server-0.1.0.0-7Mri2RdHfBU6xyPcxqTKZx:Lib 8001
-  interface hash: a4bae458c8b000dcca4e084a621aec76
-  ABI hash: ebae99b8134c1052fa7426f0eab62810
-  export-list hash: a2392768dfc452e919b5b1d3152f3f7f
-  orphan hash: a0b4eaee0cbe1207b60bb4cdc1dc1a31
+  interface hash: 2519c731e2c0853a50d3c5483889f30f
+  ABI hash: b0b9f876aeb6cc0a0299e823d8bf69b3
+  export-list hash: 8aa4f8bb3d5aa019b1c98ca65e95bf97
+  orphan hash: 9645ce167bcb0aa52db822ffc254de32
   flag hash: d70711e7ef4a69be226c4d486b274bb9
   sig of: Nothing
   used TH splices: False
@@ -235,6 +235,7 @@ import  -/  base-4.9.0.0:GHC.Conc.IO 6ceec3e7d25d962e7686724c6c1d7820
 import  -/  base-4.9.0.0:GHC.Conc.Sync 800ad52ae188c67fd514a07ba8a64fcc
 import  -/  base-4.9.0.0:GHC.Generics 8e2a7658e8b966c1d29d0d5fd4129f38
 import  -/  base-4.9.0.0:GHC.Num 48f506a8f4ecf06285d0a0706594dcc0
+import  -/  base-4.9.0.0:GHC.Show 952347a6ab730bcb25c0854d8bc6ca51
 import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
 import  -/  base-4.9.0.0:System.Environment ee0914a962f5508d0fd404c89ee4999b
 import  -/  base-4.9.0.0:Text.Read 9c1be14f7e5eac8b18bcb566c5763677
@@ -264,15 +265,15 @@ import  -/  text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text 6515f3179
 import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Clock b91051c7767d1f23314064be1d4311d7
 import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Format b6d4cc5df3f9159b1156baa52a254cf6
 import  -/  transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Except 71b1d86204f6908788cb5223e3c73193
-import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPI 92906ca7d3981691f385cd1a9aed0d70
-import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPIClient 0b28078d0ac22a629b6fe2a67a41aa38
-import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPIServer 72346ec17363fbe40e4aef704e91d1e0
+import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPI 6171a52a4073255cd9bb35870ff1d3f5
+import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPIClient 66355519ee220b8a459b2e04aac87604
+import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPIServer d66d0aca9ff8561226504f8be0c37733
 import  -/  wai-3.2.1.1@wai-3.2.1.1-f77bMYZGLQBAD3XJrvGiW:Network.Wai f10fb472d685284a8637bf34e58bc7f2
 import  -/  wai-logger-2.3.0@wai-logger-2.3.0-IfusT8I9ees2102USHAF8e:Network.Wai.Logger 676219d60f680a2e3b4c9a3bb9537896
 import  -/  warp-3.2.9@warp-3.2.9-1T06si5IpgT9ocLo3cujDp:Network.Wai.Handler.Warp 33f88067fbf0923a50b96cc7136c9050
 import  -/  warp-3.2.9@warp-3.2.9-1T06si5IpgT9ocLo3cujDp:Network.Wai.Handler.Warp.Run e14d432f6381327ab382a236eaf2b9f0
 import  -/  warp-3.2.9@warp-3.2.9-1T06si5IpgT9ocLo3cujDp:Network.Wai.Handler.Warp.Settings 5739a8fdbd5ed7f4539f8ce18bcf6515
-126d3b68363e23660721ec7eba70ce2b
+dd2c8ad38013ef6aac1f8e5ebdca7ff6
   $s$fAllCTRender:a ::
     Servant.API.ContentTypes.AllCTRender
       '[Servant.API.ContentTypes.JSON] [UseHaskellAPI.Message]
@@ -304,20 +305,20 @@ import  -/  warp-3.2.9@warp-3.2.9-1T06si5IpgT9ocLo3cujDp:Network.Wai.Handler.War
                        `cast`
                      (Sym (Servant.API.ContentTypes.N:AllMime[0] <'[]>_N))
                      Lib.$s$fAllCTRender:a1) -}
-3e29af857add6a74ccbdd48f7965c851
+fac864dcb005d1529187134c2b496236
   $s$fAllCTRender:a1 ::
     Servant.API.ContentTypes.AllMimeRender
       '[Servant.API.ContentTypes.JSON] [UseHaskellAPI.Message]
   {- Strictness: m,
      Unfolding: InlineRule (0, True, True)
                 Lib.$s$fAllCTRender:a_$s$fAllMimeRender:a0 -}
-f812ec1c564468f99ab01ae62c185c12
+7294b91fe3633762ed96c855f3184627
   $s$fAllCTRender:a2 ::
     Data.Aeson.Types.Class.ToJSON [UseHaskellAPI.Message]
   {- Strictness: m,
      Unfolding: InlineRule (0, True, True)
                 Lib.$s$fAllCTRender:a_$s$fToJSON[] -}
-f6f827bf1840c13b594c8d76b3be33cc
+46fdc1d1ca647768ff3611e44c663fb2
   $s$fAllCTRender:a3 ::
     Servant.API.ContentTypes.MimeRender
       Servant.API.ContentTypes.JSON [UseHaskellAPI.Message]
@@ -370,7 +371,7 @@ f6139409e198d92d4fd97eb7edce95c5
   {- Strictness: m,
      Unfolding: InlineRule (0, True, True)
                 Lib.$s$fAllCTRender:a_$s$fMimeRenderTYPEJSONa1 -}
-a822c1bd00432e98177b8bbff200e794
+8ef7ba1ad699c0436a3bf1c3bd795614
   $s$fAllCTRender:a_$s$fAllMimeRender:a0 ::
     Servant.API.ContentTypes.AllMimeRender
       '[Servant.API.ContentTypes.JSON] [UseHaskellAPI.Message]
@@ -383,7 +384,7 @@ a822c1bd00432e98177b8bbff200e794
                      @ [UseHaskellAPI.Message]
                      Lib.$s$fAllCTRender:a3)
                   Lib.$s$fAllCTRender:a_$s$fAllMimeRender:a0_$callMimeRender -}
-95738289474bfc256e6b11dfa66dfd88
+83fdfcf7b6bb37897913bf5ededd8efd
   $s$fAllCTRender:a_$s$fAllMimeRender:a0_$callMimeRender ::
     Data.Proxy.Proxy '[Servant.API.ContentTypes.JSON]
     -> [UseHaskellAPI.Message]
@@ -448,7 +449,7 @@ a822c1bd00432e98177b8bbff200e794
                      @ GHC.Types.Bool
                      Lib.$s$fAllCTRender:a6)
                   Lib.$s$fAllCTRender:a_$s$fAllMimeRender:a0_$callMimeRender1 -}
-9c9530e72190b11c0759fc48a3efd4b2
+df9a8eb20e0f66b5d6d0095faba9ef4d
   $s$fAllCTRender:a_$s$fMimeRenderTYPEJSONa ::
     Servant.API.ContentTypes.MimeRender
       Servant.API.ContentTypes.JSON [UseHaskellAPI.Message]
@@ -474,7 +475,7 @@ fb891a2c446b0c8de3cf7dd15fc65f56
                      @ GHC.Types.Bool
                      Data.Aeson.Types.Instances.$fToJSONBool)
                   Lib.$s$fAllCTRender:a_$s$fMimeRenderTYPEJSONa_$cmimeRender1 -}
-e6fa62590a21c24581f10886ef893998
+1786b90bc3c8070eba2d44d1a4e96a50
   $s$fAllCTRender:a_$s$fMimeRenderTYPEJSONa_$cmimeRender ::
     Data.Proxy.Proxy Servant.API.ContentTypes.JSON
     -> [UseHaskellAPI.Message]
@@ -552,7 +553,7 @@ e6fa62590a21c24581f10886ef893998
                       (Data.Aeson.Encode.Builder.bool eta)
                         `cast`
                       (Sym (Data.Aeson.Types.Internal.N:Encoding[0])))) -}
-c37c4099d87e2ff5a7bb40bb207cfd28
+d6dac50f14533b2c73f77efe0f24a502
   $s$fAllCTRender:a_$s$fToJSON[] ::
     Data.Aeson.Types.Class.ToJSON [UseHaskellAPI.Message]
   {- Strictness: m, Inline: [ALWAYS] CONLIKE,
@@ -621,7 +622,7 @@ fcacd858e505c87c6c3163fa5fc803e0
   {- Strictness: m,
      Unfolding: InlineRule (0, True, True)
                 Lib.$s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa -}
-4e0ce8f2c7bf7af23f40b901797774da
+c391c1610c095e90c55e3b1b3968678b
   $s$fAllMimeUnrender:a2 ::
     Servant.API.ContentTypes.AllMimeUnrender
       '[Servant.API.ContentTypes.JSON] UseHaskellAPI.Shadow
@@ -643,14 +644,14 @@ fcacd858e505c87c6c3163fa5fc803e0
                      Lib.$s$fAllMimeUnrender:a3
                      (Servant.API.ContentTypes.$fAllMimeUnrender[]a
                         @ UseHaskellAPI.Shadow)) -}
-924c425ea7fbdd17c9e3a0be2a526503
+812709552110ae5e1b0d1f5025058ea1
   $s$fAllMimeUnrender:a3 ::
     Servant.API.ContentTypes.MimeUnrender
       Servant.API.ContentTypes.JSON UseHaskellAPI.Shadow
   {- Strictness: m,
      Unfolding: InlineRule (0, True, True)
                 Lib.$s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa1 -}
-872cfd2a92b77e1e20a45a889ed482de
+3c4cf65cf03e19bde87982a41cdcdd9c
   $s$fAllMimeUnrender:a4 ::
     Servant.API.ContentTypes.AllMimeUnrender
       '[Servant.API.ContentTypes.JSON] UseHaskellAPI.Message
@@ -672,7 +673,7 @@ fcacd858e505c87c6c3163fa5fc803e0
                      Lib.$s$fAllMimeUnrender:a5
                      (Servant.API.ContentTypes.$fAllMimeUnrender[]a
                         @ UseHaskellAPI.Message)) -}
-3aefd2015e5e7f0d77f3300c39448492
+0bc6f8bf1d1d1439556edcde4e40ba14
   $s$fAllMimeUnrender:a5 ::
     Servant.API.ContentTypes.MimeUnrender
       Servant.API.ContentTypes.JSON UseHaskellAPI.Message
@@ -694,7 +695,7 @@ fcacd858e505c87c6c3163fa5fc803e0
                        `cast`
                      (Sym (Data.Aeson.Types.Class.N:FromJSON[0] <[GHC.Types.Char]>_N)))
                   Lib.$s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa_$cmimeUnrender -}
-d083532e2d5a680ef2733af4b5cde3c7
+dda004ce44e3af66ae189fcf979c0072
   $s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa1 ::
     Servant.API.ContentTypes.MimeUnrender
       Servant.API.ContentTypes.JSON UseHaskellAPI.Shadow
@@ -710,7 +711,7 @@ d083532e2d5a680ef2733af4b5cde3c7
                      (Sym (Data.Aeson.Types.Class.N:FromJSON[0]
                                <UseHaskellAPI.Shadow>_N)))
                   Lib.$s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa_$cmimeUnrender1 -}
-ff10b6e943833323ff99989b884d7f22
+2061590a60cd41f8cdde4d5186625fbd
   $s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa2 ::
     Servant.API.ContentTypes.MimeUnrender
       Servant.API.ContentTypes.JSON UseHaskellAPI.Message
@@ -741,7 +742,7 @@ ff10b6e943833323ff99989b884d7f22
                      `cast`
                    (Sym (Data.Aeson.Types.Class.N:FromJSON[0] <[GHC.Types.Char]>_N))
                    eta) -}
-4e3b2966772c693b43780c412998239e
+fb8a68ccec6235d48782b8b3811c0ecb
   $s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa_$cmimeUnrender1 ::
     Data.Proxy.Proxy Servant.API.ContentTypes.JSON
     -> Data.ByteString.Lazy.Internal.ByteString
@@ -757,7 +758,7 @@ ff10b6e943833323ff99989b884d7f22
                    (Sym (Data.Aeson.Types.Class.N:FromJSON[0]
                              <UseHaskellAPI.Shadow>_N))
                    eta) -}
-493ad366baec1b6e1b659ddd331a22b0
+ab5c241c83d49f263ed2ff7dd96fae16
   $s$fAllMimeUnrender:a_$s$fMimeUnrenderTYPEJSONa_$cmimeUnrender2 ::
     Data.Proxy.Proxy Servant.API.ContentTypes.JSON
     -> Data.ByteString.Lazy.Internal.ByteString
@@ -786,7 +787,7 @@ ff10b6e943833323ff99989b884d7f22
   {- HasNoCafRefs, Strictness: m1,
      Unfolding: (GHC.Types.TrNameS
                    "file-server-0.1.0.0-7Mri2RdHfBU6xyPcxqTKZx"#) -}
-0255fd960df3770f87d3f9aba7580595
+8959036b7090a42667368567e51cd90c
   $w$dHasServer ::
     Data.Proxy.Proxy
       (("download"
@@ -809,13 +810,20 @@ ff10b6e943833323ff99989b884d7f22
                                                                                         Servant.API.Sub.:> Servant.API.Verbs.Post
                                                                                                              '[Servant.API.ContentTypes.JSON]
                                                                                                              GHC.Types.Bool))
-                                                                   Servant.API.Alternative.:<|> ("pushTransaction"
-                                                                                                 Servant.API.Sub.:> (Servant.API.ReqBody.ReqBody
-                                                                                                                       '[Servant.API.ContentTypes.JSON]
-                                                                                                                       GHC.Base.String
-                                                                                                                     Servant.API.Sub.:> Servant.API.Verbs.Post
-                                                                                                                                          '[Servant.API.ContentTypes.JSON]
-                                                                                                                                          GHC.Types.Bool)))))
+                                                                   Servant.API.Alternative.:<|> (("pushTransaction"
+                                                                                                  Servant.API.Sub.:> (Servant.API.ReqBody.ReqBody
+                                                                                                                        '[Servant.API.ContentTypes.JSON]
+                                                                                                                        GHC.Base.String
+                                                                                                                      Servant.API.Sub.:> Servant.API.Verbs.Post
+                                                                                                                                           '[Servant.API.ContentTypes.JSON]
+                                                                                                                                           GHC.Types.Bool))
+                                                                                                 Servant.API.Alternative.:<|> ("replicateFile"
+                                                                                                                               Servant.API.Sub.:> (Servant.API.ReqBody.ReqBody
+                                                                                                                                                     '[Servant.API.ContentTypes.JSON]
+                                                                                                                                                     UseHaskellAPI.Message
+                                                                                                                                                   Servant.API.Sub.:> Servant.API.Verbs.Post
+                                                                                                                                                                        '[Servant.API.ContentTypes.JSON]
+                                                                                                                                                                        GHC.Types.Bool))))))
     -> Servant.Server.Internal.Context.Context '[]
     -> Servant.Server.Internal.RoutingApplication.Delayed
          env
@@ -840,13 +848,20 @@ ff10b6e943833323ff99989b884d7f22
                                                                                               Servant.API.Sub.:> Servant.API.Verbs.Post
                                                                                                                    '[Servant.API.ContentTypes.JSON]
                                                                                                                    GHC.Types.Bool))
-                                                                         Servant.API.Alternative.:<|> ("pushTransaction"
-                                                                                                       Servant.API.Sub.:> (Servant.API.ReqBody.ReqBody
-                                                                                                                             '[Servant.API.ContentTypes.JSON]
-                                                                                                                             GHC.Base.String
-                                                                                                                           Servant.API.Sub.:> Servant.API.Verbs.Post
-                                                                                                                                                '[Servant.API.ContentTypes.JSON]
-                                                                                                                                                GHC.Types.Bool))))))
+                                                                         Servant.API.Alternative.:<|> (("pushTransaction"
+                                                                                                        Servant.API.Sub.:> (Servant.API.ReqBody.ReqBody
+                                                                                                                              '[Servant.API.ContentTypes.JSON]
+                                                                                                                              GHC.Base.String
+                                                                                                                            Servant.API.Sub.:> Servant.API.Verbs.Post
+                                                                                                                                                 '[Servant.API.ContentTypes.JSON]
+                                                                                                                                                 GHC.Types.Bool))
+                                                                                                       Servant.API.Alternative.:<|> ("replicateFile"
+                                                                                                                                     Servant.API.Sub.:> (Servant.API.ReqBody.ReqBody
+                                                                                                                                                           '[Servant.API.ContentTypes.JSON]
+                                                                                                                                                           UseHaskellAPI.Message
+                                                                                                                                                         Servant.API.Sub.:> Servant.API.Verbs.Post
+                                                                                                                                                                              '[Servant.API.ContentTypes.JSON]
+                                                                                                                                                                              GHC.Types.Bool)))))))
     -> Servant.Server.Internal.Router.Router'
          env Servant.Server.Internal.RoutingApplication.RoutingApplication
   {- Arity: 3, Strictness: <S,1*H><L,U><L,U>, Inline: [0] -}

@@ -3,11 +3,11 @@ Preprocessing library use-haskell-api-0.1.0.0...
 [1 of 5] Compiling RSAhelpers       ( src/RSAhelpers.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/RSAhelpers.o )
 [2 of 5] Compiling UseHaskellAPI    ( src/UseHaskellAPI.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/UseHaskellAPI.o )
 
-src/UseHaskellAPI.hs:62:15: warning: [-Wdeprecations]
+src/UseHaskellAPI.hs:68:15: warning: [-Wdeprecations]
     In the use of ‘initKey’ (imported from Crypto.Cipher.AES):
     Deprecated: "use initAES"
 
-src/UseHaskellAPI.hs:71:15: warning: [-Wdeprecations]
+src/UseHaskellAPI.hs:77:15: warning: [-Wdeprecations]
     In the use of ‘initKey’ (imported from Crypto.Cipher.AES):
     Deprecated: "use initAES"
 [3 of 5] Compiling UseHaskellAPIClient ( src/UseHaskellAPIClient.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/UseHaskellAPIClient.o )

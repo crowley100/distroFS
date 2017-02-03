@@ -46,6 +46,7 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           UseHaskellAPIClient
 import           System.Random
 
 type MyDirAPI = "lsDir"               :> Get '[JSON] [FsContents]
@@ -54,8 +55,14 @@ type MyDirAPI = "lsDir"               :> Get '[JSON] [FsContents]
            :<|> "mapFile"             :> ReqBody '[JSON] Message :> Get '[JSON] [SendFileRef]
            :<|> "ping"                :> ReqBody '[JSON] Message :> Post '[JSON] Bool
            :<|> "registerFS"          :> ReqBody '[JSON] Message3 :> Post '[JSON] Bool
+           :<|> "getPropagationInfo"  :> ReqBody '[JSON] Message :> Get '[JSON] [FsAttributes]
 
 -- some helper functions...
+
+getDirInfo :: String -> IO [FsInfo]
+getDirInfo fDir = liftIO $ do
+  findFS <- withMongoDbConnection $ find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
+  return (DL.take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findFS)
 
 -- elecet a replica to server as new primary server
 primaryElection :: FsInfo -> FsInfo
@@ -65,7 +72,7 @@ primaryElection (FsInfo dName _ []) = (FsInfo dName Nothing []) -- all servers d
 -- check if any replicas aren't responding, remove those that aren't
 updateReplicaStatus :: [FsAttributes] -> [FsAttributes] -> IO [FsAttributes]
 updateReplicaStatus [] result = return result
-updateReplicaStatus (r@(FsAttributes _ ip port):rest) result = liftIO $ do
+updateReplicaStatus (r@(FsAttributes ip port):rest) result = liftIO $ do
   let rID = (ip ++ port)
   findStatus <- withMongoDbConnection $ find (select  ["name" =: rID] "FS_STATUS") >>= drainCursor
   let rStatus = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) findStatus
@@ -82,11 +89,10 @@ updateReplicaStatus (r@(FsAttributes _ ip port):rest) result = liftIO $ do
 
 -- Update server data structures to only contain responding servers
 updateServerStatus :: String -> IO ()
-updateServerStatus fDir = do
-  findFS <- withMongoDbConnection $ find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
-  let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findFS
+updateServerStatus fDir = liftIO $ do
+  servers <- getDirInfo fDir
   case servers of
-    ((FsInfo dName p@(Just (FsAttributes _ ip port)) replicas):_) -> do
+    ((FsInfo dName p@(Just (FsAttributes ip port)) replicas):_) -> do
       newReplicas <- updateReplicaStatus replicas []
       let pID = (ip ++ port)
           newStatus = (FsInfo dName p newReplicas)
@@ -102,10 +108,11 @@ updateServerStatus fDir = do
             True -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON (primaryElection newStatus)
             otherwise -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON newStatus
         otherwise -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON newStatus-- inconsitent state
+    otherwise -> warnLog $ "error: inconsistent db state"
 
 loadBalance :: [FsAttributes] -> IO FsAttributes
 loadBalance [] = do
-  return (FsAttributes True "localhost" "8081")
+  return (FsAttributes "localhost" "8081")
 loadBalance replicas = do
   let size = ((length replicas) - 1)
   index <- randomRIO (0, size)
@@ -131,6 +138,7 @@ dirService = lsDir
         :<|> mapFile
         :<|> ping
         :<|> registerFS
+        :<|> getPropagationInfo
   where
     lsDir :: Handler [FsContents]
     lsDir = liftIO $ do
@@ -155,15 +163,14 @@ dirService = lsDir
         findRef <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) findRef
         case result of
-          (ref@(FileRef fp fid fts):_) -> do
-            findFS <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
-            let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findFS
+          (ref@(FileRef fp fid fts):_) ->  liftIO $ do
+            servers <- getDirInfo fDir
             case servers of
               [] -> return ([] :: [SendFileRef]) -- directory not found
-              (fs@(FsInfo name (Just (FsAttributes _ newIp newPort)) []):_) -> do
+              (fs@(FsInfo name (Just (FsAttributes newIp newPort)) []):_) -> do
                 return [(SendFileRef fp fid fts newIp newPort)] -- no replicas, use primary
               (fs@(FsInfo name _ replicas):_) -> liftIO $ do
-                (FsAttributes _ newIp newPort) <- loadBalance replicas
+                (FsAttributes newIp newPort) <- loadBalance replicas
                 return [(SendFileRef fp fid fts newIp newPort)]
           [] -> return ([] :: [SendFileRef]) -- file not found
 
@@ -173,48 +180,46 @@ dirService = lsDir
       updateServerStatus fDir
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
-      withMongoDbConnection $ do
-        let filepath = (fDir ++ fName)
-        fsInfo <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
-        let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
-        case fs of
-          [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
-          (info@(FsInfo _ (Just (FsAttributes _ ip port)) _):_) -> do
-            docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
-            let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
-            case result of
-              ((FileRef somePath someID t):_) -> do
-                return [(SendFileRef somePath someID myTime ip port)]
-              [] -> do
-                -- update contents record
-                contents <- find (select ["dirName" =: fDir] "CONTENTS_RECORD") >>= drainCursor
-                let fList = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
-                case fList of
-                  ((FsContents _ files):_) -> liftIO $ do
-                    let newContents = (FsContents fDir (files ++ [fName]))
-                    withMongoDbConnection $ upsert (select  ["dirName" =: fDir] "CONTENTS_RECORD") $ toBSON newContents
-                  [] -> liftIO $ do warnLog $ "ERROR: inconsistent db record (CONTENTS_RECORD)"
-                ids <- find (select ["directory" =: fDir] "ID_RECORD") >>= drainCursor
-                let newID = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileID) ids
-                case newID of
-                  ((FileID dirName myID):_) -> liftIO $ do
-                    let retID = myID
-                        updatedID = (show ((read myID) + 1))
-                    let value = FileID dirName updatedID
-                        result = (FileRef filepath retID myTime)
-                    withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                    withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
-                    return [(SendFileRef filepath retID myTime ip port)]
-                  [] -> liftIO $ do
-                    let retID = "0"
-                        updatedID = "1"
-                    let value = FileID fDir updatedID
-                        result = (FileRef filepath retID myTime)
-                    withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                    withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
-                    return [(SendFileRef filepath retID myTime ip port)]
+      let filepath = (fDir ++ fName)
+      fs <- getDirInfo fDir
+      case fs of
+        [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
+        (info@(FsInfo _ (Just (FsAttributes ip port)) _):_) -> do
+          docs <- withMongoDbConnection $ find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+          let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+          case result of
+            ((FileRef somePath someID t):_) -> do
+              return [(SendFileRef somePath someID myTime ip port)]
+            [] -> do
+              -- update contents record
+              contents <- withMongoDbConnection $ find (select ["dirName" =: fDir] "CONTENTS_RECORD") >>= drainCursor
+              let fList = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
+              case fList of
+                ((FsContents _ files):_) -> liftIO $ do
+                  let newContents = (FsContents fDir (files ++ [fName]))
+                  withMongoDbConnection $ upsert (select  ["dirName" =: fDir] "CONTENTS_RECORD") $ toBSON newContents
+                [] -> liftIO $ do warnLog $ "ERROR: inconsistent db record (CONTENTS_RECORD)"
+              ids <- withMongoDbConnection $ find (select ["directory" =: fDir] "ID_RECORD") >>= drainCursor
+              let newID = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileID) ids
+              case newID of
+                ((FileID dirName myID):_) -> liftIO $ do
+                  let retID = myID
+                      updatedID = (show ((read myID) + 1))
+                  let value = FileID dirName updatedID
+                      result = (FileRef filepath retID myTime)
+                  withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
+                  withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
+                  return [(SendFileRef filepath retID myTime ip port)]
+                [] -> liftIO $ do
+                  let retID = "0"
+                      updatedID = "1"
+                  let value = FileID fDir updatedID
+                      result = (FileRef filepath retID myTime)
+                  withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
+                  withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
+                  return [(SendFileRef filepath retID myTime ip port)]
 
-    -- affirm fs is still alive
+    -- confirm fs is still alive
     ping :: Message -> Handler Bool
     ping msg@(Message ip port) = liftIO $ do
       currentTime <- getCurrentTime
@@ -228,22 +233,28 @@ dirService = lsDir
     registerFS :: Message3 -> Handler Bool
     registerFS msg3@(Message3 dirName fsIP fsPort) = liftIO $ do
       warnLog $ "Registering file server associated with [" ++ dirName ++ "]"
-      fsInfo <- withMongoDbConnection $ find (select ["myName" =: dirName] "FS_INFO") >>= drainCursor
-      let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
+      fs <- getDirInfo dirName
       case fs of
         [] -> do
-          let newEntry = (FsInfo dirName (Just (FsAttributes True fsIP fsPort)) [])
+          let newEntry = (FsInfo dirName (Just (FsAttributes fsIP fsPort)) [])
           withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
           return True
         ((FsInfo _ primary replicas):_) -> do
           case primary of
             (Just pServer) -> do
-              let newReplica = (FsAttributes False fsIP fsPort)
+              let newReplica = (FsAttributes fsIP fsPort)
               let newEntry = (FsInfo dirName (Just pServer) (replicas ++ [newReplica]))
               withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
               return True
             otherwise -> do -- handle edge case of no primary server
-              let newPrimary = Just (FsAttributes True fsIP fsPort)
+              let newPrimary = Just (FsAttributes fsIP fsPort)
               let newEntry = (FsInfo dirName newPrimary replicas)
               withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
               return True
+
+    getPropagationInfo :: Message -> Handler [FsAttributes]
+    getPropagationInfo (Message directory ticket) = liftIO $ do
+      serverInfo <- getDirInfo directory
+      case serverInfo of
+        [] -> return ([] :: [FsAttributes])
+        ((FsInfo _ _ replicas):_) -> return replicas

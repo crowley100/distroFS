@@ -72,6 +72,7 @@ fileService = download
          :<|> upload
          :<|> updateShadowDB
          :<|> pushTransaction
+         :<|> replicateFile
   where
     -- using Message type to send (fPath, fConents)
     download :: Maybe String -> Handler [Message]
@@ -85,11 +86,18 @@ fileService = download
       warnLog $ "No file specified to download."
       return $ ([] :: [Message])
 
-    -- lock here prior to upload of file
+    -- update primary, propagate change to replicas
     upload :: Message -> Handler Bool
     upload myFile@(Message fPath _) = liftIO $ do
-      warnLog $ "Uploading file to db: [" ++ fPath ++ "]."
+      warnLog $ "Uploading file to db: [" ++ fPath ++ "] and propagating replicas"
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
+      -- propagate change
+      myDir <- fsName -- get env vairable
+      propagate <- servDoCall (getPropagationInfo (Message myDir "ticket")) dirPort
+      case propagate of
+        Left e -> warnLog $ "propagation failure: " ++ (show e)
+        Right replicas -> broadcast myFile replicas
+
       return True
 
     updateShadowDB :: Shadow -> Handler Bool
@@ -117,6 +125,13 @@ fileService = download
       entries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
       let ((ShadowInfo _ files):_) = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) entries
       myCommit files
+      return True
+
+    -- receive update from primary file server
+    replicateFile :: Message -> Handler Bool
+    replicateFile myFile@(Message fPath _) = liftIO $ do
+      warnLog $ "Uploading file to db: [" ++ fPath ++ "]."
+      withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       return True
 
 -- helper functions
@@ -156,3 +171,10 @@ iExist port = do
           warnLog $ "I'm only a replica..."
           let status = (Message s "REPLICA") -- could use bool
           withMongoDbConnection $ upsert (select ["name" =: s] "STATE") $ toBSON status
+
+-- broadcast changes to all replicas
+broadcast :: Message -> [FsAttributes] -> IO ()
+broadcast _ [] = warnLog $ "no replicas left for propagation"
+broadcast aFile ((FsAttributes _ port):rs) = do
+  servDoCall (UseHaskellAPIClient.replicateFile aFile) ((read port) :: Int)
+  broadcast aFile rs
