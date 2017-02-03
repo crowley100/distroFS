@@ -30,7 +30,7 @@ version = Version [0,1,0,0] []
 bindir, libdir, datadir, libexecdir, sysconfdir :: FilePath
 
 bindir     = "/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/bin"
-libdir     = "/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/dir-server-0.1.0.0-Eb6L12FdEkC66SWvXmEphx"
+libdir     = "/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH"
 datadir    = "/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/share/x86_64-linux-ghc-8.0.1/dir-server-0.1.0.0"
 libexecdir = "/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/libexec"
 sysconfdir = "/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/etc"

@@ -48,43 +48,74 @@ import           UseHaskellAPI
 import           UseHaskellAPIServer
 import           System.Random
 
-type MyDirAPI = "lsDir"                   :> Get '[JSON] [FsContents]
-           :<|> "lsFile"                  :> QueryParam "name" String :> Get '[JSON] [FsContents]
-           :<|> "fileQuery"               :> ReqBody '[JSON] Message :> Get '[JSON] [FileRef]
-           :<|> "mapFile"                 :> ReqBody '[JSON] Message :> Get '[JSON] [FileRef]
-           :<|> "ping"                    :> ReqBody '[JSON] Message :> Post '[JSON] Bool
-           :<|> "registerFS"              :> ReqBody '[JSON] Message3 :> Post '[JSON] Bool
+type MyDirAPI = "lsDir"               :> Get '[JSON] [FsContents]
+           :<|> "lsFile"              :> QueryParam "name" String :> Get '[JSON] [FsContents]
+           :<|> "fileQuery"           :> ReqBody '[JSON] Message :> Get '[JSON] [SendFileRef]
+           :<|> "mapFile"             :> ReqBody '[JSON] Message :> Get '[JSON] [SendFileRef]
+           :<|> "ping"                :> ReqBody '[JSON] Message :> Post '[JSON] Bool
+           :<|> "registerFS"          :> ReqBody '[JSON] Message3 :> Post '[JSON] Bool
 
--- ip defaulting to local host (currently only 2 FS running for testing purposess)
-{-
-initFileServers :: IO ()
-initFileServers = do
-  warnLog $ "populating db records with default values"
-  withMongoDbConnection $ do
-    let server11 = FsAttributes
-        server12 = FsAttributes
-        server13 = FsAttributes
-        server21 = FsAttributes
-        server22 = FsAttributes
-        server23 = FsAttributes
-    let servers1 = FsInfo ("fs1") (server1:([server12] ++ [server]))
-        servers2 = FsInfo
-    let value1 = (FsInfo name1 ip1 port1)
-        value2 = (FsInfo name2 ip2 port2)
-        files1 = (FsContents name1 [])
-        files2 = (FsContents name2 [])
-    -- enter file server meta data
-    upsert (select  ["directory" =: name1] "FS_INFO") $ toBSON value1
-    upsert (select  ["directory" =: name2] "FS_INFO") $ toBSON value2
-    -- specify file server contents
-    upsert (select  ["dirName" =: name1] "CONTENTS_RECORD") $ toBSON files1
-    upsert (select  ["dirName" =: name2] "CONTENTS_RECORD") $ toBSON files2 -}
+-- some helper functions...
 
+-- elecet a replica to server as new primary server
+primaryElection :: FsInfo -> FsInfo
+primaryElection (FsInfo dName _ (r:rs)) = (FsInfo dName (Just r) rs)
+primaryElection (FsInfo dName _ []) = (FsInfo dName Nothing []) -- all servers dead
+
+-- check if any replicas aren't responding, remove those that aren't
+updateReplicaStatus :: [FsAttributes] -> [FsAttributes] -> IO [FsAttributes]
+updateReplicaStatus [] result = return result
+updateReplicaStatus (r@(FsAttributes _ ip port):rest) result = liftIO $ do
+  let rID = (ip ++ port)
+  findStatus <- withMongoDbConnection $ find (select  ["name" =: rID] "FS_STATUS") >>= drainCursor
+  let rStatus = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) findStatus
+  case rStatus of
+    ((Message _ tStamp):_) -> do
+      currentTime <- getCurrentTime
+      let myTime = (show currentTime)
+      let tDiff = (cmpTime myTime tStamp)
+      let isDead = tDiff > 10.0 -- some acceptable response delay
+      case isDead of
+        True -> updateReplicaStatus rest result
+        otherwise -> updateReplicaStatus rest (result ++ [r])
+    otherwise -> updateReplicaStatus rest result -- inconsitent state
+
+-- Update server data structures to only contain responding servers
+updateServerStatus :: String -> IO ()
+updateServerStatus fDir = do
+  findFS <- withMongoDbConnection $ find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
+  let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findFS
+  case servers of
+    ((FsInfo dName p@(Just (FsAttributes _ ip port)) replicas):_) -> do
+      newReplicas <- updateReplicaStatus replicas []
+      let pID = (ip ++ port)
+          newStatus = (FsInfo dName p newReplicas)
+      findStatus <- withMongoDbConnection $ find (select  ["name" =: pID] "FS_STATUS") >>= drainCursor
+      let pStatus = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) findStatus
+      case pStatus of
+        ((Message _ tStamp):_) -> do
+          currentTime <- getCurrentTime
+          let myTime = (show currentTime)
+          let tDiff = (cmpTime myTime tStamp)
+          let isDead = tDiff > 10.0 -- some acceptable response delay
+          case isDead of
+            True -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON (primaryElection newStatus)
+            otherwise -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON newStatus
+        otherwise -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON newStatus-- inconsitent state
+
+loadBalance :: [FsAttributes] -> IO FsAttributes
+loadBalance [] = do
+  return (FsAttributes True "localhost" "8081")
+loadBalance replicas = do
+  let size = ((length replicas) - 1)
+  index <- randomRIO (0, size)
+  return (replicas !! index)
+
+-- begin service
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting directory-service."
   let settings = setPort 8000 $ setLogger aplogger defaultSettings -- port change?
-  --initFileServers -- possible changes here!
   runSettings settings app
 
 app :: Application
@@ -118,6 +149,7 @@ dirService = lsDir
     fileQuery :: Message -> Handler [SendFileRef]
     fileQuery query@(Message fName fDir) = liftIO $ do
       warnLog $ "Client querying file ["++fName++"] in directory: " ++ fDir
+      updateServerStatus fDir
       withMongoDbConnection $ do
         let filepath = (fDir ++ fName)
         findRef <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
@@ -125,32 +157,35 @@ dirService = lsDir
         case result of
           (ref@(FileRef fp fid fts):_) -> do
             findFS <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
-            let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findRef
+            let servers = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findFS
             case servers of
               [] -> return ([] :: [SendFileRef]) -- directory not found
-              ((FsInfo name serverList):_) -> do
-                let (FsAttributes _ newIp newPort) = (selectReplica serverList [])
+              (fs@(FsInfo name (Just (FsAttributes _ newIp newPort)) []):_) -> do
+                return [(SendFileRef fp fid fts newIp newPort)] -- no replicas, use primary
+              (fs@(FsInfo name _ replicas):_) -> liftIO $ do
+                (FsAttributes _ newIp newPort) <- loadBalance replicas
                 return [(SendFileRef fp fid fts newIp newPort)]
           [] -> return ([] :: [SendFileRef]) -- file not found
 
     mapFile :: Message -> Handler [SendFileRef]
     mapFile val@(Message fName fDir) = liftIO $ do
       warnLog $ "Client mapping file ["++fName++"] in directory: " ++ fDir
+      updateServerStatus fDir
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
       withMongoDbConnection $ do
         let filepath = (fDir ++ fName)
-        docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
-        let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
-        case result of
-          ((FileRef somePath someID t someIP somePort):_) -> do
-            return [(FileRef somePath someID myTime someIP somePort)]
-          [] -> do
-            fsInfo <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
-            let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
-            case fs of
-              [] -> return ([] :: [FileRef]) -- Can handle empty list on client side
-              (info@(FsInfo _ ip port):_) -> do
+        fsInfo <- find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
+        let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
+        case fs of
+          [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
+          (info@(FsInfo _ (Just (FsAttributes _ ip port)) _):_) -> do
+            docs <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+            let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
+            case result of
+              ((FileRef somePath someID t):_) -> do
+                return [(SendFileRef somePath someID myTime ip port)]
+              [] -> do
                 -- update contents record
                 contents <- find (select ["dirName" =: fDir] "CONTENTS_RECORD") >>= drainCursor
                 let fList = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
@@ -166,47 +201,49 @@ dirService = lsDir
                     let retID = myID
                         updatedID = (show ((read myID) + 1))
                     let value = FileID dirName updatedID
-                        result = (FileRef filepath retID myTime ip port)
+                        result = (FileRef filepath retID myTime)
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                     withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
-                    return [(FileRef filepath retID myTime ip port)]
+                    return [(SendFileRef filepath retID myTime ip port)]
                   [] -> liftIO $ do
                     let retID = "0"
                         updatedID = "1"
                     let value = FileID fDir updatedID
-                        result = (FileRef filepath retID myTime ip port)
+                        result = (FileRef filepath retID myTime)
                     withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                     withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
-                    return [(FileRef filepath retID myTime ip port)]
+                    return [(SendFileRef filepath retID myTime ip port)]
 
     -- affirm fs is still alive
     ping :: Message -> Handler Bool
-    ping msg@(Message "thing1" "thing2") = do
+    ping msg@(Message ip port) = liftIO $ do
+      currentTime <- getCurrentTime
+      let myTime = (show currentTime)
+      let fsID = (ip ++ port)
+      let updatedStatus = (Message fsID myTime)
+      withMongoDbConnection $ upsert (select  ["name" =: fsID] "FS_STATUS") $ toBSON updatedStatus
       return True
 
     -- register a file server
     registerFS :: Message3 -> Handler Bool
     registerFS msg3@(Message3 dirName fsIP fsPort) = liftIO $ do
       warnLog $ "Registering file server associated with [" ++ dirName ++ "]"
-      return True
-
--- helper functions
-
--- directing reads to replicas to help with load balancing
-selectReplica :: [FsAttributes] -> [FsAttributes] -> FsAttributes
-selectReplica [] replicas = loadBalance replicas
-selectReplica [h@(FsAttributes True _ _)] [] = h
-selectReplica (h@(FsAttributes False _ _):rest) replicas = selectReplica rest (replicas ++ [h])
-selectReplica (h@(FsAttributes True _ _):rest) replicas = loadBalance (replicas ++ rest)
-
--- simple policy to share work among replicas and primary file server
-loadBalance :: [FsAttributes] -> FsAttributes
-loadBalance [] = liftIO $ do
-  -- default action
-  warnLog $ "No file servers found, using default meta data"
-  return (FsAttributes True "localhost" "8081")
-loadBalance replicas = do
-  -- generate random index (0, replicas.length-1)
-  let size = ((length replicas) - 1)
-  index <- randomRIO (0, size)
-  return (replicas !! index)
+      fsInfo <- withMongoDbConnection $ find (select ["myName" =: dirName] "FS_INFO") >>= drainCursor
+      let fs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) fsInfo
+      case fs of
+        [] -> do
+          let newEntry = (FsInfo dirName (Just (FsAttributes True fsIP fsPort)) [])
+          withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
+          return True
+        ((FsInfo _ primary replicas):_) -> do
+          case primary of
+            (Just pServer) -> do
+              let newReplica = (FsAttributes False fsIP fsPort)
+              let newEntry = (FsInfo dirName (Just pServer) (replicas ++ [newReplica]))
+              withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
+              return True
+            otherwise -> do -- handle edge case of no primary server
+              let newPrimary = Just (FsAttributes True fsIP fsPort)
+              let newEntry = (FsInfo dirName newPrimary replicas)
+              withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
+              return True

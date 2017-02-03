@@ -1,63 +1,10 @@
 Preprocessing library dir-server-0.1.0.0...
 [1 of 1] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Lib.o )
-
-src/Lib.hs:129:40: error:
-    • Ambiguous type variable ‘m0’ arising from a use of ‘liftIO’
-      prevents the constraint ‘(MonadIO m0)’ from being solved.
-      Probable fix: use a type annotation to specify what ‘m0’ should be.
-      These potential instances exist:
-        instance [safe] MonadIO IO -- Defined in ‘Control.Monad.IO.Class’
-        instance [safe] MonadIO m => MonadIO (ExceptT e m)
-          -- Defined in ‘Control.Monad.Trans.Except’
-        ...plus 13 instances involving out-of-scope types
-        (use -fprint-potential-instances to see them all)
-    • In the expression:
-        liftIO
-        $ do { warnLog
-               $ "Client mapping file [" ++ fName ++ "] in directory: " ++ fDir;
-               currentTime <- getCurrentTime;
-               let myTime = (show currentTime);
-               withMongoDbConnection
-               $ do { let ...;
-                      docs <- find (select [...] "FILEREF_RECORD") >>= drainCursor;
-                      .... } }
-      In an equation for ‘mapFile’:
-          mapFile val@(Message fName fDir)
-            = liftIO
-              $ do { warnLog
-                     $ "Client mapping file [" ++ fName ++ "] in directory: " ++ fDir;
-                     currentTime <- getCurrentTime;
-                     let myTime = ...;
-                     .... }
-      In an equation for ‘dirService’:
-          dirService
-            = lsDir
-              :<|> lsFile :<|> fileQuery :<|> mapFile :<|> ping :<|> registerFS
-            where
-                lsDir :: Handler [FsContents]
-                lsDir
-                  = liftIO
-                    $ do { warnLog $ "Client listing directories";
-                           .... }
-                lsFile :: Maybe String -> Handler [FsContents]
-                lsFile (Just directory)
-                  = liftIO
-                    $ do { warnLog
-                           $ "Client listing files in directory: " ++ directory;
-                           .... }
-                ....
-
-src/Lib.hs:145:22: error:
-    • The constructor ‘FsInfo’ should have 2 arguments, but has been given 3
-    • In the pattern: FsInfo _ ip port
-      In the pattern: info@(FsInfo _ ip port) : _
-      In a case alternative:
-          (info@(FsInfo _ ip port) : _)
-            -> do { contents <- find
-                                  (select ["dirName" =: fDir] "CONTENTS_RECORD")
-                                >>= drainCursor;
-                    let fList = ...;
-                    case fList of {
-                      ((FsContents _ files) : _) -> liftIO $ ...
-                      [] -> liftIO $ ... };
-                    .... }
+Preprocessing executable 'dir-server-exe' for dir-server-0.1.0.0...
+[1 of 1] Compiling Main             ( app/Main.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/dir-server-exe/dir-server-exe-tmp/Main.o ) [Lib changed]
+Linking .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/dir-server-exe/dir-server-exe ...
+Installing library in
+/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH
+Installing executable(s) in
+/home/lorcan/distroFS/dir-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/bin
+Registering dir-server-0.1.0.0...

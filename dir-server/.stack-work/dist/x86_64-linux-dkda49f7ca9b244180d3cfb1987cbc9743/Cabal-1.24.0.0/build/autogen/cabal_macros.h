@@ -77,6 +77,13 @@
   (major1) == 2 && (major2) <  2 || \
   (major1) == 2 && (major2) == 2 && (minor) <= 1)
 
+/* package random-1.1 */
+#define VERSION_random "1.1"
+#define MIN_VERSION_random(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  1 || \
+  (major1) == 1 && (major2) == 1 && (minor) <= 0)
+
 /* package resourcet-1.1.8.1 */
 #define VERSION_resourcet "1.1.8.1"
 #define MIN_VERSION_resourcet(major1,major2,minor) (\
@@ -238,7 +245,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "dir-server-0.1.0.0-Eb6L12FdEkC66SWvXmEphx"
+#define CURRENT_COMPONENT_ID "dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH"
 
-#define CURRENT_PACKAGE_KEY "dir-server-0.1.0.0-Eb6L12FdEkC66SWvXmEphx"
+#define CURRENT_PACKAGE_KEY "dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH"
 

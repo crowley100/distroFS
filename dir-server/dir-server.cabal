@@ -36,6 +36,7 @@ library
                      , http-client
                      , use-haskell-api
                      , bcrypt
+                     , random
   default-language:    Haskell2010
 
 executable dir-server-exe

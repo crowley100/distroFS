@@ -61,7 +61,7 @@ startApp = withLogging $ \ aplogger -> do
 app :: String -> IO Application
 app port = do
   iExist port
-  forkIO $ stillAlive 3 port
+  forkIO $ stillAlive 5 port
   return $ serve api fileService
 
 api :: Proxy FileAPI
