@@ -196,21 +196,27 @@ doLsFile dirName h p = do
 -- can combine this logic with download when integrating
 doFileQuery :: String -> String -> Maybe String -> Maybe String -> IO ()
 doFileQuery fileName dirName h p = do
-  getRef <- myDoCall (fileQuery $ Message fileName dirName) h (Just "8000")
+  getRef <- myDoCall (fileQuery $ Message fileName dirName) h (Just (show dirPort))
   case getRef of
     Left err -> do
-      putStrLn "error querying file..."
-    Right res -> do
-      case res of
-        ((FileRef fPath fID "time" fsIP fsPort):_) -> do
+      putStrLn $ "error [" ++ (show err) ++ "] querying file..."
+    Right response -> do
+      case response of
+        ((SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
           putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
-          -- integrate download here!
-          getFile <- myDoCall (download $ Just fID) (Just fsIP) (Just fsPort)
-          case getFile of
-            Left err -> do
-              putStrLn "error retrieving file..."
-            Right ((Message file_path text):rest) ->
-              writeFile fileName text -- use global file name (rather than ID)
+          checkTimeStamp <- notCached myTime fPath
+          case checkTimeStamp of
+            True -> do
+              getFile <- myDoCall (download $ Just fID) (Just fsIP) (Just fsPort)
+              case getFile of
+                Left err -> do
+                  putStrLn "error retrieving file..."
+                Right ((Message file_path text):rest) -> do
+                  -- cache file
+                  let cacheRef = (FileRef fPath dirName fID myTime)
+                  withClientMongoDbConnection $ upsert (select ["fp" =: fPath] "CLIENT_CACHE") $ toBSON cacheRef
+                  writeFile fileName text -- use global file name (rather than ID)
+            otherwise -> putStrLn $ "Using cached: " ++ dirName ++ "/" ++ fileName
         [] -> do
           putStrLn (fileName ++ " does not exist in " ++ dirName)
 
@@ -220,26 +226,27 @@ doMapFile fileName dirName h p = do
   getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just "8000")
   case getMapping of
     Left err -> do
-      putStrLn "error mapping file..."
-    Right (ref@(FileRef fPath fID myTime fsIP fsPort):_) -> do
-      putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
-      -- integrate upload here!
-      let owner = "clientTransaction" :: String
-      contents <- readFile fileName
-      -- check if transaction in progress
-      putStrLn "testest1"
-      withClientMongoDbConnection $ do
-        findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-        case myTrans of
-          ((CurrentTrans _ tID):_) -> liftIO $ do
-            putStrLn "Pushing modification to transaction server..."
-            let update = (Modification ref contents)
-            let fileT = (FileTransaction tID update)
-            doCall (tUpload fileT) h (Just "8080")
-          [] -> liftIO $ do
-            putStrLn "Uploading file to file server..."
-            doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
+      putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+    Right response -> do
+      case response of
+        [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+        (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
+          putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+          let owner = "clientTransaction" :: String
+          contents <- readFile fileName
+          -- check if transaction in progress
+          withClientMongoDbConnection $ do
+            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+            case myTrans of
+              ((CurrentTrans _ tID):_) -> liftIO $ do
+                putStrLn "Pushing modification to transaction server..."
+                let update = (Modification ref contents)
+                let fileT = (FileTransaction tID update)
+                doCall (tUpload fileT) h (Just "8080")
+              [] -> liftIO $ do
+                putStrLn "Uploading file to file server..."
+                doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
 
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
@@ -278,7 +285,7 @@ doCommit h p = do
     case myTrans of
       ((CurrentTrans _ tID):_) -> liftIO $ do
         putStrLn "Committing current transaction..."
-        doCall (commit tID) h (Just "8080")
+        doCall (commit tID) h (Just (show transPort))
         withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
       [] -> liftIO $ do
         putStrLn "No active transactions..."
@@ -293,7 +300,7 @@ doAbort h p = do
     case myTrans of
       ((CurrentTrans _ tID):_) -> liftIO $ do
         putStrLn "Aborting current transaction..."
-        doCall (abort tID) h (Just "8080")
+        doCall (abort tID) h (Just (show transPort))
         withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
       [] -> liftIO $ do
         putStrLn "No active transactions..."
@@ -442,6 +449,16 @@ withClientMongoDbConnection act  = do
   ret <- runResourceT $ liftIO $ access pipe master (pack database) act
   close pipe
   return ret
+
+-- caching helper
+notCached :: String -> String -> IO Bool
+notCached remoteTime fp = do
+  putStrLn "Checking cache..."
+  checkCache <- withClientMongoDbConnection $ find (select ["fp" =: fp] "CLIENT_CACHE") >>= drainCursor
+  let cache = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) checkCache
+  case cache of
+    [] -> return True -- file not in cache
+    ((FileRef _ _ _ localTime):_) -> return ((cmpTime remoteTime localTime) > 0)
 
 -- helpers to simplify the creation of command line options
 withInfo :: Parser a -> String -> ParserInfo a

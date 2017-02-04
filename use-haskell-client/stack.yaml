@@ -52,7 +52,7 @@ packages:
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
   - location:
       git: https://github.com/crowley100/my_distro_API.git
-      commit: 6d6e2cc444236c99c749d219a7cb86ace40d03de
+      commit: 60c53385156e9ba14ed4d2c2679d3c71bdb35f2a
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps: [git-embed-0.1.0,  github-0.15.0, cabal-file-th-0.2.4, servant-client-0.9.1.1, servant-0.9.1.1, servant-server-0.9.1.1, http-api-data-0.3.2]

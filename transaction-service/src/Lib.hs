@@ -93,7 +93,7 @@ transService = beginTransaction
             return $ ResponseData retID
 
     tUpload :: FileTransaction -> Handler Bool
-    tUpload (FileTransaction transID change@(Modification (FileRef fp _ _ _ _) _)) = liftIO $ do
+    tUpload (FileTransaction transID change@(Modification (SendFileRef fp _ _ _ _ _) _)) = liftIO $ do
       warnLog $ "Client uploading a modification to the transaction."
       withMongoDbConnection $ do
         findTrans <- find (select ["transID" =: transID] "TRANSACTION_RECORD") >>= drainCursor
@@ -148,7 +148,7 @@ transService = beginTransaction
           [] -> liftIO $ do
             return False
 
-    -- functionality to be determined... (WORK HERE!)
+    -- functionality to be determined... (WORK HERE!) use bool returns instead?
     confirmCommit :: Message -> Handler Bool
     confirmCommit (Message tID fPath) = liftIO $ do
       warnLog (tID ++ ": [" ++ fPath ++ "] has been committed.")
@@ -162,7 +162,7 @@ readyUp [] result _ = result
 
 pushShadows :: String -> [Modification] -> IO ()
 pushShadows _ [] = warnLog $ "No more changes to push."
-pushShadows tID ((Modification (FileRef _ fID _ ip port) fContents):rest) = do
+pushShadows tID ((Modification (SendFileRef _ _ fID _ ip port) fContents):rest) = do
   let newShadow = (Shadow tID (Message fID fContents))
   try <- servDoCall (updateShadowDB newShadow) (read port)
   case try of
