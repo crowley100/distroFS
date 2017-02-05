@@ -223,31 +223,37 @@ doFileQuery fileName dirName h p = do
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
-  -- case for transaction
-  getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just "8000")
-  case getMapping of
-    Left err -> do
-      putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
-    Right response -> do
-      case response of
-        [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
-        (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
-          putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
-          let owner = "clientTransaction" :: String
-          contents <- readFile fileName
-          -- check if transaction in progress
-          withClientMongoDbConnection $ do
-            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-            case myTrans of
-              ((CurrentTrans _ tID):_) -> liftIO $ do
-                putStrLn "Pushing modification to transaction server..."
-                let update = (Modification ref contents)
-                let fileT = (FileTransaction tID update)
-                doCall (tUpload fileT) h (Just "8080")
-              [] -> liftIO $ do
-                putStrLn "Uploading file to file server..."
-                doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
+  -- check if transaction in progress
+  let owner = "clientTransaction" :: String
+  findTrans <- withClientMongoDbConnection $ find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+  let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+  case myTrans of
+    ((CurrentTrans _ tID):_) -> do
+      getMapping <- myDoCall (dirShadowing $ Message3 tID fileName dirName) h (Just (show dirPort))
+      case getMapping of
+        Left err -> do
+          putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+        Right response -> do
+          case response of
+            [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+            (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
+              contents <- readFile fileName
+              putStrLn "Pushing modification to transaction server..."
+              let update = (Modification ref contents)
+              let fileT = (FileTransaction tID update)
+              doCall (tUpload fileT) h (Just (show transPort))
+    otherwise -> do
+      getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just (show dirPort))
+      case getMapping of
+        Left err -> do
+          putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+        Right response -> do
+          case response of
+            [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+            (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
+              contents <- readFile fileName
+              putStrLn "Uploading file to file server..."
+              doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
 
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()

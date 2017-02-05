@@ -122,6 +122,11 @@ transService = beginTransaction
     abort :: String -> Handler Bool
     abort transID = liftIO $ do
       warnLog $ "Client aborting modifications in the transaction."
+      -- tell directory server
+      toDir <- servDoCall (dirCommitShadow (Message transID "ticket")) dirPort
+      case toDir of
+        Left _ -> warnLog $ "service communication failure. (transaction -> dir server)"
+        Right _ -> warnLog $ "service communication success. (transaction -> dir server)"
       withMongoDbConnection $ delete (select  ["transID" =: transID] "TRANSACTION_RECORD")
       return True
 
@@ -139,6 +144,11 @@ transService = beginTransaction
                 warnLog $ "All servers ready to commit, broadcast response"
                 -- broadcast to file servers: commit your shadow databases for tID
                 broadcastCommit tID changes
+                -- tell directory server to commit its shadow records too
+                toDir <- servDoCall (dirCommitShadow (Message tID "ticket")) dirPort
+                case toDir of
+                  Left _ -> warnLog $ "service communication failure. (transaction -> dir server)"
+                  Right _ -> warnLog $ "service communication success. (transaction -> dir server)"
               otherwise -> liftIO $ do
                 warnLog $ "Ready to commit: " ++ fPath
             let newT = Transaction someID changes newPaths
@@ -147,7 +157,7 @@ transService = beginTransaction
           [] -> liftIO $ do
             return False
 
-    -- functionality to be determined... (WORK HERE!) use bool returns instead?
+    -- functionality to be determined...
     confirmCommit :: Message -> Handler Bool
     confirmCommit (Message tID fPath) = liftIO $ do
       warnLog (tID ++ ": [" ++ fPath ++ "] has been committed.")
@@ -174,5 +184,5 @@ broadcastCommit tID ((Modification (SendFileRef _ _ _ _ ip port) fContents):rest
   toFS <- servDoCall (pushTransaction tID) (read port)
   case toFS of
     Left _ -> warnLog $ "service communication failure. (transaction -> file server)"
-    Right _ -> warnLog $ "serice communication success. (transaction -> file server)"
+    Right _ -> warnLog $ "service communication success. (transaction -> file server)"
   broadcastCommit tID rest
