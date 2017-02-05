@@ -121,6 +121,32 @@ loadBalance replicas = do
   index <- randomRIO (0, size)
   return (replicas !! index)
 
+-- remove duplicate elements from a list
+removeDuplicates :: Eq a => [a] -> [a]
+removeDuplicates = foldl (\seen x -> if x `elem` seen
+                                     then seen
+                                     else seen ++ [x]) []
+
+-- if the file is a new addition to the directory, add it to contents
+updateDirContents :: String -> String -> IO ()
+updateDirContents fp fDir = do
+  let fName = DL.drop (DL.length fDir) fp
+  contents <- withMongoDbConnection $ find (select ["dirName" =: fDir] "CONTENTS_RECORD") >>= drainCursor
+  let fList = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
+  case fList of
+    ((FsContents _ files):_) -> liftIO $ do
+      let newFiles = removeDuplicates (files ++ [fName])
+      let newContents = (FsContents fDir newFiles)
+      withMongoDbConnection $ upsert (select  ["dirName" =: fDir] "CONTENTS_RECORD") $ toBSON newContents
+    [] -> liftIO $ do warnLog $ "ERROR: inconsistent db record (CONTENTS_RECORD)"
+
+-- push changes in shadow record to real db
+doTheCommit :: [FileRef] -> IO ()
+doTheCommit [] = putStrLn "Nothing left to push from shadow to real db..."
+doTheCommit (ref@(FileRef fp dir _ _):rest) = do
+  withMongoDbConnection $ upsert (select ["filePath" =: fp] "FILEREF_RECORD") $ toBSON ref
+  updateDirContents fp dir
+
 -- begin service
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
@@ -307,7 +333,7 @@ dirService = lsDir
                   case shadowRefs of
                     (entry@(ShadowRef _ refs):_) -> do
                       let newEntry = (ShadowRef tID (refs ++ [result]))
-                      withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "SHADOW_REFS") $ toBSON newEntry
+                      withMongoDbConnection $ upsert (select  ["dTID" =: filepath] "SHADOW_REFS") $ toBSON newEntry
                     otherwise -> do
                       let newEntry = (ShadowRef tID [result])
                       withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "SHADOW_REFS") $ toBSON newEntry
@@ -323,18 +349,25 @@ dirService = lsDir
                   case shadowRefs of
                     (entry@(ShadowRef _ refs):_) -> do
                       let newEntry = (ShadowRef tID (refs ++ [result]))
-                      withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "SHADOW_REFS") $ toBSON newEntry
+                      withMongoDbConnection $ upsert (select  ["dTID" =: tID] "SHADOW_REFS") $ toBSON newEntry
                     otherwise -> do
                       let newEntry = (ShadowRef tID [result])
-                      withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "SHADOW_REFS") $ toBSON newEntry
+                      withMongoDbConnection $ upsert (select  ["dTID" =: tID] "SHADOW_REFS") $ toBSON newEntry
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                   return [(SendFileRef filepath fDir retID myTime ip port)]
 
     -- maybe dont use ticket below as it is server-server comms
     dirCommitShadow :: Message -> Handler Bool
     dirCommitShadow (Message tID ticket) = liftIO $ do
-      return True
+      findShadows <- withMongoDbConnection $ find (select ["dTID" =: tID] "SHADOW_REFS") >>= drainCursor
+      let shadowRefs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowRef) findShadows
+      case shadowRefs of
+        (shadow@(ShadowRef _ refs):_) -> do
+          doTheCommit refs
+          return True
+        otherwise -> return False
 
     dirAbortShadow :: Message -> Handler Bool
     dirAbortShadow (Message tID ticket) = liftIO $ do
+      withMongoDbConnection $ delete (select  ["dTID" =: tID] "SHADOW_REFS")
       return True
