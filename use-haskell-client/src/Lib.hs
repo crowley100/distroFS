@@ -99,17 +99,6 @@ doCall f h p = reportExceptionOr (putStrLn . resp) (SC.runClientM f =<< env h p)
 
 myDoCall f h p = (SC.runClientM f =<< env h p)
 
--- which makes the actual rest calls trivial...(notice the currying)
-
-doLoadEnvVars :: Maybe String -> Maybe String -> Maybe String -> IO ()
-doLoadEnvVars s = doCall $ loadEnvVars s
-
-doGetREADME :: Maybe String -> Maybe String -> IO ()
-doGetREADME  = doCall getREADME
-
-doStoreMessage :: String -> String -> Maybe String -> Maybe String -> IO ()
-doStoreMessage n m  = doCall $ storeMessage $ Message n m
-
 doSignUp :: String -> String -> Maybe String -> Maybe String -> IO ()
 doSignUp name pass host port = do
    resp <- myDoCall (loadPublicKey) host port
@@ -132,15 +121,18 @@ doLogIn name pass host port = do
       let authKey = toPublicKey (PubKeyInfo a b c)
       cryptPass <- encryptPass authKey pass
       putStrLn "got the public key!"
-      doCall (logIn $ Login name cryptPass) host port
-
-doSearchMessage :: String -> Maybe String -> Maybe String -> IO ()
-doSearchMessage s  = doCall $ searchMessage $ Just s
-
-doPerformRestCall :: Maybe String -> Maybe String -> Maybe String -> IO ()
-doPerformRestCall s  =  doCall $ performRestCall s
+      -- store authenticated details for later communication
+      details <- myDoCall (logIn $ Login name cryptPass) host (Just (show authPort))
+      -- WORK HERE
+      --case details of
+      --  Left err -> do
+      --    putStrLn "login failure..."
+      --  Right ((ResponseData ticket):(ResponseData encSesh))
+      putStrLn "temp"
 
 -- lock service commands
+-- now redundant
+{-
 doLockFile :: String -> Maybe String -> Maybe String -> IO ()
 doLockFile fName = doCall $ lock fName
 
@@ -149,8 +141,9 @@ doUnlockFile fName = doCall $ unlock fName
 
 doFileLocked :: String -> Maybe String -> Maybe String -> IO ()
 doFileLocked fName = doCall $ locked $ Just fName
-
+-}
 -- file service commands
+-- redundant (now integrated with directory server)
 doDownloadFile :: String -> Maybe String -> Maybe String -> IO ()
 doDownloadFile fPath h p = do
   getFile <- myDoCall (download $ Just fPath) h p
@@ -171,7 +164,6 @@ doUploadFile fPath h p = do
     case myTrans of
       ((CurrentTrans _ tID):_) -> liftIO $ do
         putStrLn "Pushing modification to transaction server..."
-
       [] -> liftIO $ do
         putStrLn "Uploading file to file server..."
         doCall (upload $  Message fPath contents) h p
@@ -179,11 +171,11 @@ doUploadFile fPath h p = do
 -- directory service commands
 doLsDir :: Maybe String -> Maybe String -> IO ()
 doLsDir h p = do
-   doCall lsDir h (Just "8000")
+   doCall lsDir h (Just (show dirPort))
 
 doLsFile :: String -> Maybe String -> Maybe String -> IO ()
 doLsFile dirName h p = do
-  getFiles <- myDoCall (lsFile $ Just dirName) h (Just "8000")
+  getFiles <- myDoCall (lsFile $ Just dirName) h (Just (show dirPort))
   case getFiles of
     Left err -> do
       putStrLn "error listing files..."
@@ -223,6 +215,8 @@ doFileQuery fileName dirName h p = do
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
+  -- try to lock file
+  --tryGetLock <- lock
   -- check if transaction in progress
   let owner = "clientTransaction" :: String
   findTrans <- withClientMongoDbConnection $ find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
@@ -254,11 +248,12 @@ doMapFile fileName dirName h p = do
               contents <- readFile fileName
               putStrLn "Uploading file to file server..."
               doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
+      -- unlock file (if not transaction)
 
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
 doBeginTrans h p = do
-  getTransID <- myDoCall beginTransaction h (Just "8080")
+  getTransID <- myDoCall beginTransaction h (Just (show transPort))
   let owner = "clientTransaction" :: String
   case getTransID of
     Left err -> do
@@ -273,7 +268,7 @@ doBeginTrans h p = do
           ((CurrentTrans _ oldTID):_) -> liftIO $ do
             putStrLn "Aborting current transaction and starting new one..."
             -- tell transaction server to abort previous transaction
-            doCall (abort oldTID) h (Just "8080")
+            doCall (abort oldTID) h (Just (show transPort))
             -- set transaction boolean to true ?? or just db entry existence as check...
             withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
           [] -> liftIO $ do
@@ -330,36 +325,7 @@ opts = do
 
   return $ info (   helper
                 <*> subparser
-                       (  command "load-envs"
-                                  (withInfo ( doLoadEnvVars
-                                            <$> optional (strOption ( long "name"
-                                                                   <> short 'n'
-                                                                   <> help "The variable to load."))
-                                            <*> serverIpOption
-                                            <*> serverPortOption) "Load an environment variable on the remote server." )
-                       <> command "get-readme"
-                                  (withInfo ( doGetREADME
-                                          <$> serverIpOption
-                                          <*> serverPortOption) "Get a remote README file." )
-                       <> command "store-message"
-                                  (withInfo ( doStoreMessage
-                                          <$> argument str (metavar "Name")
-                                          <*> argument str (metavar "Message")
-                                          <*> serverIpOption
-                                          <*> serverPortOption) "Store a message on the remote server." )
-                       <> command "search-message"
-                                  (withInfo ( doSearchMessage
-                                          <$> argument str (metavar "Name")
-                                          <*> serverIpOption
-                                          <*> serverPortOption) "Search for messages on the remote server." )
-                       <> command "rest-call"
-                                   (withInfo ( doPerformRestCall
-                                           <$> optional (strOption ( long "search"
-                                                                  <> short 's'
-                                                                  <> help "The search string for the hackage call."))
-                                           <*> serverIpOption
-                                           <*> serverPortOption) "Do a hackage rest call from the remote server." )
-                       <> command "sign-up"
+                       (  command "sign-up"
                                    (withInfo ( doSignUp
                                            <$> argument str (metavar "UserName")
                                            <*> argument str (metavar "Password")
@@ -377,7 +343,7 @@ opts = do
                             --               <*> argument str (metavar "Password")
                               --             <*> serverIpOption
                                 --           <*> serverPortOption) "Logs user out of the remote server." )
-                       <> command "lock"
+                       {-<> command "lock"
                                    (withInfo ( doLockFile
                                             <$> argument str (metavar "fName")
                                             <*> serverIpOption
@@ -391,7 +357,7 @@ opts = do
                                    (withInfo ( doFileLocked
                                             <$> argument str (metavar "fName")
                                             <*> serverIpOption
-                                            <*> serverPortOption) "Check if file is locked." )
+                                            <*> serverPortOption) "Check if file is locked." )-}
                        <> command "download"
                                    (withInfo ( doDownloadFile
                                             <$> argument str (metavar "fPath")

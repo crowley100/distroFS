@@ -84,7 +84,7 @@ updateReplicaStatus (r@(FsAttributes ip port):rest) result = liftIO $ do
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
       let tDiff = (cmpTime myTime tStamp)
-      let isDead = tDiff > 10.0 -- some acceptable response delay
+      let isDead = tDiff > 30.0 -- some acceptable response delay
       case isDead of
         True -> updateReplicaStatus rest result
         otherwise -> updateReplicaStatus rest (result ++ [r])
@@ -106,7 +106,7 @@ updateServerStatus fDir = liftIO $ do
           currentTime <- getCurrentTime
           let myTime = (show currentTime)
           let tDiff = (cmpTime myTime tStamp)
-          let isDead = tDiff > 10.0 -- some acceptable response delay
+          let isDead = tDiff > 30.0 -- some acceptable response delay
           case isDead of
             True -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON (primaryElection newStatus)
             otherwise -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON newStatus

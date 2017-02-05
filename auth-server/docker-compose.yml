@@ -10,7 +10,7 @@ auth-server:
     # - http_proxy=http://www-proxy.scss.tcd.ie:8080
   command: /usr/local/bin/auth-server-exe
   ports:
-    - "8080:8080"
+    - "8001:8001"
   links:
     - database
 database:
