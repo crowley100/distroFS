@@ -223,6 +223,7 @@ doFileQuery fileName dirName h p = do
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
+  -- case for transaction
   getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just "8000")
   case getMapping of
     Left err -> do

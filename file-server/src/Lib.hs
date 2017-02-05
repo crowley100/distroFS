@@ -122,9 +122,13 @@ fileService = download
     pushTransaction :: String -> Handler Bool
     pushTransaction tID = liftIO $ do
       warnLog $ "Moving shadow entries for [" ++ tID ++ "] to storage."
-      entries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
-      let ((ShadowInfo _ files):_) = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) entries
-      myCommit files
+      findEntries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
+      let entries = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) findEntries
+      case entries of
+        ((ShadowInfo _ files):_) -> do
+          myCommit files
+          withMongoDbConnection $ delete (select ["trID" =: tID] "SHADOW_RECORD")
+        otherwise -> putStrLn "nothing left to commit..."
       return True
 
     -- receive update from primary file server

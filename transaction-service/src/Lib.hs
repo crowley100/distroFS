@@ -110,7 +110,6 @@ transService = beginTransaction
     commit transID = liftIO $ do
       warnLog $ "Client committing modifications in the transaction."
       -- initiate phase 2: talk to file servers
-      -- ALSO talk to directory server
       withMongoDbConnection $ do
         findTrans <- find (select ["transID" =: transID] "TRANSACTION_RECORD") >>= drainCursor
         let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
@@ -138,8 +137,8 @@ transService = beginTransaction
             case newPaths of
               [] -> liftIO $ do
                 warnLog $ "All servers ready to commit, broadcast response"
-                -- BROADCAST RESPONSE!! myDoCall...
-                -- WORK HERE
+                -- broadcast to file servers: commit your shadow databases for tID
+                broadcastCommit tID changes
               otherwise -> liftIO $ do
                 warnLog $ "Ready to commit: " ++ fPath
             let newT = Transaction someID changes newPaths
@@ -164,7 +163,16 @@ pushShadows :: String -> [Modification] -> IO ()
 pushShadows _ [] = warnLog $ "No more changes to push."
 pushShadows tID ((Modification (SendFileRef _ _ fID _ ip port) fContents):rest) = do
   let newShadow = (Shadow tID (Message fID fContents))
-  try <- servDoCall (updateShadowDB newShadow) (read port)
-  case try of
-    Left err -> warnLog $ "service communication failure. (transaction -> file server)"
+  toFS <- servDoCall (updateShadowDB newShadow) (read port)
+  case toFS of
+    Left _ -> warnLog $ "service communication failure. (transaction -> file server)"
     Right _ -> warnLog $ "serice communication success. (transaction -> file server)"
+  pushShadows tID rest
+
+broadcastCommit :: String -> [Modification] -> IO ()
+broadcastCommit tID ((Modification (SendFileRef _ _ _ _ ip port) fContents):rest) = do
+  toFS <- servDoCall (pushTransaction tID) (read port)
+  case toFS of
+    Left _ -> warnLog $ "service communication failure. (transaction -> file server)"
+    Right _ -> warnLog $ "serice communication success. (transaction -> file server)"
+  broadcastCommit tID rest
