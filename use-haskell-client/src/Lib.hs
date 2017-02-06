@@ -215,6 +215,7 @@ doFileQuery fileName dirName h p = do
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
+  let filePath = (dirName ++ fileName)
   -- get user details
   myDetails <- getDetails
   case myDetails of
@@ -224,7 +225,7 @@ doMapFile fileName dirName h p = do
       case checkSession of
         True -> do
           -- try to lock file for writing
-          let encFp = myEncryptAES (aesPad mySesh) (dirName ++ fileName)
+          let encFp = myEncryptAES (aesPad mySesh) (filePath)
               encName = myEncryptAES (aesPad mySesh) (myName)
           tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) h (Just (show lockPort))
           case tryGetLock of
@@ -235,6 +236,7 @@ doMapFile fileName dirName h p = do
               let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
               case myTrans of
                 ((CurrentTrans _ tID):_) -> do
+                  transactionLock tID filePath -- keep track of files locked for this transaction
                   getMapping <- myDoCall (dirShadowing $ Message3 tID fileName dirName) h (Just (show dirPort))
                   case getMapping of
                     Left err -> do
@@ -262,12 +264,9 @@ doMapFile fileName dirName h p = do
                           doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
                           -- unlocking only required here if upload is not part of transaction
                           doCall (unlock $ Message3 encFp encName myTicket) h (Just (show lockPort))
-            otherwise -> do
-              putStrLn $ "DENIED: " ++ dirName ++ "/" ++ fileName ++ " is locked, try again later..."
-        otherwise -> do
-          putStrLn $ "DENIED: Session expired, relog to continue..."
-    otherwise -> do
-      putStrLn $ "DENIED: Must create an account and log in..."
+            otherwise -> putStrLn $ "DENIED: " ++ dirName ++ "/" ++ fileName ++ " is locked, try again later..."
+        otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
+    otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
 
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
@@ -299,32 +298,50 @@ doBeginTrans h p = do
 -- fetch tID from client db, talk to transaction server, remove ID from db
 doCommit :: Maybe String -> Maybe String -> IO ()
 doCommit h p = do
-  let owner = "clientTransaction" :: String
-  withClientMongoDbConnection $ do
-    findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-    let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-    case myTrans of
-      ((CurrentTrans _ tID):_) -> liftIO $ do
-        putStrLn "Committing current transaction..."
-        doCall (commit tID) h (Just (show transPort))
-        withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
-      [] -> liftIO $ do
-        putStrLn "No active transactions..."
+  myDetails <- getDetails
+  case myDetails of
+    ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
+      checkSession <- validSession myExpiryDate
+      case checkSession of
+        True -> do
+          let owner = "clientTransaction" :: String
+          withClientMongoDbConnection $ do
+            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+            case myTrans of
+              ((CurrentTrans _ tID):_) -> liftIO $ do
+                putStrLn "Committing current transaction..."
+                doCall (commit tID) h (Just (show transPort))
+                withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
+                transactionUnlock tID myName mySesh myTicket
+              [] -> liftIO $ do
+                putStrLn "No active transactions..."
+        otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
+    otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
 
 -- fetch tID from client db, talk to transaction server, remove ID from db
 doAbort :: Maybe String -> Maybe String -> IO ()
 doAbort h p = do
-  let owner = "clientTransaction" :: String
-  withClientMongoDbConnection $ do
-    findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-    let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-    case myTrans of
-      ((CurrentTrans _ tID):_) -> liftIO $ do
-        putStrLn "Aborting current transaction..."
-        doCall (abort tID) h (Just (show transPort))
-        withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
-      [] -> liftIO $ do
-        putStrLn "No active transactions..."
+  myDetails <- getDetails
+  case myDetails of
+    ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
+      checkSession <- validSession myExpiryDate
+      case checkSession of
+        True -> do
+          let owner = "clientTransaction" :: String
+          withClientMongoDbConnection $ do
+            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+            case myTrans of
+              ((CurrentTrans _ tID):_) -> liftIO $ do
+                putStrLn "Aborting current transaction..."
+                doCall (abort tID) h (Just (show transPort))
+                withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
+                transactionUnlock tID myName mySesh myTicket
+              [] -> liftIO $ do
+                putStrLn "No active transactions..."
+        otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
+    otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
 
 -- | The options handling
 
@@ -432,7 +449,8 @@ opts = do
                           resetCode )
              <> header  (redCode ++ "Git revision : " ++ gitRev ++ ", branch: " ++ gitBranch ++ resetCode))
 
--- Transaction locking helpers
+-- Transaction locking helpers, with authentication for unlock calls, expiry date checked by caller
+-- | Add fp to list of files locked for a particular transaction
 transactionLock :: String -> String -> IO ()
 transactionLock tID fp = liftIO $ do
   findTrans <- withClientMongoDbConnection $ find (select ["tLocksID" =: tID] "TLOCKS_RECORD") >>= drainCursor
@@ -442,17 +460,27 @@ transactionLock tID fp = liftIO $ do
       withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID (lockedPaths ++ [fp]))
     otherwise ->
       withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID [fp])
-{-
-transactionUnlock :: String -> String -> IO ()
-transactionUnlock tID uName = liftIO $ do
+
+-- | Unlock all files associated with a particular transaction
+transactionUnlock :: String -> String -> String -> String -> IO ()
+transactionUnlock tID uName seshKey ticket = liftIO $ do
+  let encName = myEncryptAES (aesPad seshKey) (uName)
   findTrans <- withClientMongoDbConnection $ find (select ["tLocksID" =: tID] "TLOCKS_RECORD") >>= drainCursor
   let tLocks = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransLocks) findTrans
   case tLocks of
-    ((TransLocks _ lockedPaths):_) ->
-      withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID (lockedPaths ++ [fp]))
+    ((TransLocks _ lockedPaths):_) -> do
+      recursiveUnlock encName lockedPaths seshKey ticket
+      withClientMongoDbConnection $ delete (select ["tLocksID" =: tID] "TLOCKS_RECORD")
     otherwise ->
-      withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID [fp])
--}
+      return () -- edge case
+
+-- | do unlock operations on a list of files
+recursiveUnlock :: String -> [String] -> String -> String -> IO ()
+recursiveUnlock _ [] _ _ = putStrLn $ "Finished transaction unlocks."
+recursiveUnlock encName (p:ps) seshKey ticket = do
+  let encFP = myEncryptAES (aesPad seshKey) (p)
+  doCall (unlock (Message3 encFP encName ticket)) Nothing (Just (show lockPort))
+  recursiveUnlock encName ps seshKey ticket
 
 -- Extract my details
 getDetails :: IO [Details]
