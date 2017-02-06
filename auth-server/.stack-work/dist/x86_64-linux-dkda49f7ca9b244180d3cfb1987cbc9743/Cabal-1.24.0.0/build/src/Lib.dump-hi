@@ -1,9 +1,9 @@
 
 ==================== FINAL INTERFACE ====================
-2017-02-05 20:53:53.737967174 UTC
+2017-02-06 19:21:57.183965925 UTC
 
 interface auth-server-0.1.0.0-1YqB1E2q0TlJ3PwPBo2w40:Lib 8001
-  interface hash: 35c7587399301c2c4b003655263c7eac
+  interface hash: 04b54ced52dc001974d69f25a463426e
   ABI hash: 5714790915a2a4e0a6299665e3f8ff55
   export-list hash: c838089d234d82edccd9e09e418e4700
   orphan hash: dd18459b749f99b29ce9f82460ec8799
@@ -266,6 +266,8 @@ import  -/  servant-server-0.9.1.1@servant-server-0.9.1.1-FKQvXJjQ1586gh3lj2fX3G
 import  -/  servant-server-0.9.1.1@servant-server-0.9.1.1-FKQvXJjQ1586gh3lj2fX3G:Servant.Server.Internal.ServantErr b97f73500ad5e52f91ae14c5cb39f28d
 import  -/  text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s:Data.Text 6515f3179e27a91345842b6e634f584c
 import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Clock b91051c7767d1f23314064be1d4311d7
+import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Clock.POSIX ff33d0b23bd36f179518193a2711422e
+import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Clock.UTCDiff b148dd2062658696231213b1e8198eea
 import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Format b6d4cc5df3f9159b1156baa52a254cf6
 import  -/  transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Except 71b1d86204f6908788cb5223e3c73193
 import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:RSAhelpers 44c01946bb40da09497020ceb5683c93

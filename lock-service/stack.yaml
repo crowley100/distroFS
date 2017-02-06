@@ -51,7 +51,7 @@ packages:
       commit: e078def65d0dee1ea7e3205f445e47d5937851f3
   - location:
       git: https://github.com/crowley100/my_distro_API.git
-      commit: e4f2b84d882fbfbcae863b24ff609f86fcfcd070
+      commit: a83e8beef1e7af9891c6392d40958eb8fe8be636
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)

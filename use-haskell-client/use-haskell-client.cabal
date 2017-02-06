@@ -33,6 +33,7 @@ library
                      , resourcet
                      , bytestring
                      , text
+                     , time
   default-language:    Haskell2010
 
 executable use-haskell-client-exe

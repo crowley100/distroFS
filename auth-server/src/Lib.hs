@@ -18,11 +18,8 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Except   (ExceptT)
 import           Control.Monad.Trans.Resource
 import           Crypto.BCrypt
---import           Crypto.Cipher
---import           Crypto.Cipher.Types
 import           Crypto.Cipher.AES
 import           Codec.Crypto.RSA
---import           Codec.Crypto.AES
 import           Data.Aeson
 import           Data.Aeson.TH
 import           Data.Bson.Generic
@@ -32,7 +29,8 @@ import qualified Data.ByteString.Lazy         as L
 import qualified Data.List                    as DL
 import           Data.Maybe
 import           Data.Text                    (pack, unpack)
-import           Data.Time.Clock              (UTCTime, getCurrentTime)
+import           Data.Time.Clock
+import           Data.Time.Clock.POSIX
 import           Data.Time.Format             (defaultTimeLocale, formatTime)
 import           Database.MongoDB
 import           GHC.Generics
@@ -75,38 +73,30 @@ authServer = signUp
         :<|> logIn
         :<|> loadPublicKey
   where
+    -- | Client's first contact with the system, registration with authentication service.
     signUp :: Login -> Handler ResponseData -- bool?
     signUp val@(Login key pass) = liftIO $ do
       warnLog $ "Checking if user in db: " ++ key
-      warnLog $ "<<< ENCRYPTED PASS >>> :: [" ++ pass ++ "]"
-      -- decrypt client pass with private key
-      passText <- decryptPass pass
-      --let passText = pass
-      warnLog $ "<<< DECRYPTED PASS >>> :: [" ++ passText ++ "]" ++ " of length: " ++ (show (length passText))
+      passText <- decryptPass pass -- decrypt client pass with private key
       withMongoDbConnection $ do
         docs <- findOne (select ["userName" =: key] "USER_RECORD")
         case docs of
           Nothing -> liftIO $ do
-            -- decrypt pass with private key first HERE!
             hash <- hashPasswordUsingPolicy slowerBcryptHashingPolicy (BS.pack passText)
             let pwd = BS.unpack $ fromJust hash
-            hash1 <- hashPasswordUsingPolicy slowerBcryptHashingPolicy (BS.pack passText)
-            let pwd1 = BS.unpack $ fromJust hash
             liftIO $ do
               warnLog $ "hash to be stored: " ++ pwd ++ " || of length: " ++ (show (length pwd))
-              warnLog $ "hash1 to be stored: " ++ pwd1 ++ " || of length: " ++ (show (length pwd1))
             withMongoDbConnection $ upsert (select ["userName" =: key] "USER_RECORD") $ toBSON val {password = pwd}
             return $ ResponseData $ "Success"
           Just _ -> return $ ResponseData $ "Account already exists."
 
-    -- return Token: (ss(Ticket),seshKey,expiryDate)
+    -- | Clients must login to authenticate communication with the rest of the system.
     logIn :: Login -> Handler [ResponseData]
     logIn val@(Login key pass) = liftIO $ do
-      -- decrypt client pass with private key
-      passText <- decryptPass pass
+      passText <- decryptPass pass -- decrypt client pass with private key
+      expiryDate <- getExpiryDate
       warnLog $ "<<< DECRYPTED PASS >>> :: [" ++ passText ++ "]" ++ " of length: " ++ (show (length passText))
       withMongoDbConnection $ do
-        -- create symmetric AES key from pass
         docs <- find (select ["userName" =: key] "USER_RECORD") >>= drainCursor
         let hashedPass@((Login _ x):_) = take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Login) docs
         let valid = checkPass hashedPass passText
@@ -115,9 +105,11 @@ authServer = signUp
           True -> do
             let ss = (aesPad sharedSeed)
             let ticket = myEncryptAES (ss) (seshSeed)
-                encSesh = myEncryptAES (aesPad passText) (seshSeed) -- using '|' as delimiter
-            return $ ((ResponseData $ ticket):(ResponseData $ encSesh):[]) -- RETURN 'TOKEN' WITH HASHED CONTENTS
+                encSesh = myEncryptAES (aesPad passText) (seshSeed) -- encrypt symmetric AES key using pass
+                encDate = myEncryptAES (aesPad passText) (expiryDate)
+            return $ ((ResponseData ticket):(ResponseData encSesh):(ResponseData encDate):[])
 
+    -- | Handler for clients to fetch the authentication server's public key
     loadPublicKey :: Handler [ResponseData]
     loadPublicKey = liftIO $ do
       withMongoDbConnection $ do
@@ -136,10 +128,12 @@ authServer = signUp
             return $ toResponseData strPubKey
 
 -- helper functions
+-- | Validate password against hash stored in db.
 checkPass :: [Login] -> String -> Bool
 checkPass ((Login _ hash):_) pass = validatePassword (BS.pack hash) (BS.pack pass)
 checkpass _ _ = False
 
+-- | Decrypt user's password using authentication service's private key.
 decryptPass :: String ->  IO String
 decryptPass password = do
     let auth = "auth" :: String
@@ -150,3 +144,11 @@ decryptPass password = do
       let pass = C.pack password -- converts  into [word8] Codec.Binary.UTF8.String
       let dpass = decrypt prvKey pass
       return $ C.unpack dpass
+
+-- | Returns a date 1 day from now.
+getExpiryDate :: IO String
+getExpiryDate = do
+  let dayLength = posixDayLength
+  currentTime <- getCurrentTime
+  let lifespan = show $ addUTCTime dayLength currentTime
+  return lifespan

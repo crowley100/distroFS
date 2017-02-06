@@ -29,10 +29,8 @@ import           UseHaskellAPIClient
 import           RSAhelpers
 import           Data.Text (pack, unpack)
 import           Database.MongoDB
-
--- | to embed git and cabal details for this build into the executable (just for the fun of it)
--- The code inside $( ) gets run at compile time. The functions run extract data from project files, both .git files and
--- the .cabal file.
+import           Data.Time.Clock
+import           Data.Time.Format
 
 gitRev, gitBranch, cabalAuthor, cabalVersion, cabalCopyright :: String
 gitRev = $(embedGitShortRevision)
@@ -46,7 +44,6 @@ redCode   = setSGRCode [SetConsoleIntensity BoldIntensity , SetColor Foreground 
 whiteCode = setSGRCode [SetConsoleIntensity BoldIntensity , SetColor Foreground Vivid White]
 blueCode  = setSGRCode [SetConsoleIntensity BoldIntensity , SetColor Foreground Vivid Blue]
 resetCode = setSGRCode [Reset]
-
 
 -- | output a command line banner
 banner :: IO ()
@@ -111,7 +108,7 @@ doSignUp name pass host port = do
        putStrLn "got the public key!"
        doCall (signUp $ Login name cryptPass) host port
 
-doLogIn :: String -> String -> Maybe String -> Maybe String -> IO () -- return token here instead ?
+doLogIn :: String -> String -> Maybe String -> Maybe String -> IO ()
 doLogIn name pass host port = do
   resp <- myDoCall (loadPublicKey) host port
   case resp of
@@ -121,14 +118,17 @@ doLogIn name pass host port = do
       let authKey = toPublicKey (PubKeyInfo a b c)
       cryptPass <- encryptPass authKey pass
       putStrLn "got the public key!"
-      -- store authenticated details for later communication
       details <- myDoCall (logIn $ Login name cryptPass) host (Just (show authPort))
-      -- WORK HERE
-      --case details of
-      --  Left err -> do
-      --    putStrLn "login failure..."
-      --  Right ((ResponseData ticket):(ResponseData encSesh))
-      putStrLn "temp"
+      case details of
+        Left err -> do
+          putStrLn "login failure..."
+        Right ((ResponseData ticket):(ResponseData encSesh):(ResponseData encExpiryDate):_) -> do
+          let key = "MyDetails" :: String
+              mySesh = myDecryptAES (aesPad pass) (encSesh)
+              expiryDate = myDecryptAES (aesPad pass) (encExpiryDate)
+          let myDetails = (Details key name mySesh ticket expiryDate) -- date doesn't require decryption
+          withClientMongoDbConnection $ repsert (select ["clientKey" =: key] "DETAILS_RECORD") $ toBSON myDetails
+          putStrLn "login success!"
 
 -- lock service commands
 -- now redundant
@@ -215,40 +215,59 @@ doFileQuery fileName dirName h p = do
 -- can combine this logic with upload when integrating
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
-  -- try to lock file
-  --tryGetLock <- lock
-  -- check if transaction in progress
-  let owner = "clientTransaction" :: String
-  findTrans <- withClientMongoDbConnection $ find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-  let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-  case myTrans of
-    ((CurrentTrans _ tID):_) -> do
-      getMapping <- myDoCall (dirShadowing $ Message3 tID fileName dirName) h (Just (show dirPort))
-      case getMapping of
-        Left err -> do
-          putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
-        Right response -> do
-          case response of
-            [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
-            (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
-              contents <- readFile fileName
-              putStrLn "Pushing modification to transaction server..."
-              let update = (Modification ref contents)
-              let fileT = (FileTransaction tID update)
-              doCall (tUpload fileT) h (Just (show transPort))
+  -- get user details
+  myDetails <- getDetails
+  case myDetails of
+    ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
+      -- check if session expired
+      checkSession <- validSession myExpiryDate
+      case checkSession of
+        True -> do
+          -- try to lock file for writing
+          let encFp = myEncryptAES (aesPad mySesh) (dirName ++ fileName)
+              encName = myEncryptAES (aesPad mySesh) (myName)
+          tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) h (Just (show lockPort))
+          case tryGetLock of
+            Right True -> do
+              -- check if transaction in progress
+              let owner = "clientTransaction" :: String
+              findTrans <- withClientMongoDbConnection $ find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+              let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+              case myTrans of
+                ((CurrentTrans _ tID):_) -> do
+                  getMapping <- myDoCall (dirShadowing $ Message3 tID fileName dirName) h (Just (show dirPort))
+                  case getMapping of
+                    Left err -> do
+                      putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+                    Right response -> do
+                      case response of
+                        [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+                        (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
+                          contents <- readFile fileName
+                          putStrLn "Pushing modification to transaction server..."
+                          let update = (Modification ref contents)
+                          let fileT = (FileTransaction tID update)
+                          doCall (tUpload fileT) h (Just (show transPort))
+                otherwise -> do
+                  getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just (show dirPort))
+                  case getMapping of
+                    Left err -> do
+                      putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+                    Right response -> do
+                      case response of
+                        [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+                        (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
+                          contents <- readFile fileName
+                          putStrLn "Uploading file to file server..."
+                          doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
+                          -- unlocking only required here if upload is not part of transaction
+                          doCall (unlock $ Message3 encFp encName myTicket) h (Just (show lockPort))
+            otherwise -> do
+              putStrLn $ "DENIED: " ++ dirName ++ "/" ++ fileName ++ " is locked, try again later..."
+        otherwise -> do
+          putStrLn $ "DENIED: Session expired, relog to continue..."
     otherwise -> do
-      getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just (show dirPort))
-      case getMapping of
-        Left err -> do
-          putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
-        Right response -> do
-          case response of
-            [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
-            (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
-              contents <- readFile fileName
-              putStrLn "Uploading file to file server..."
-              doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
-      -- unlock file (if not transaction)
+      putStrLn $ "DENIED: Must create an account and log in..."
 
 -- transaction service commands
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
@@ -412,6 +431,41 @@ opts = do
                           "source < (" ++ progName ++ " --bash-completion-script `which " ++ progName ++ "`)" ++
                           resetCode )
              <> header  (redCode ++ "Git revision : " ++ gitRev ++ ", branch: " ++ gitBranch ++ resetCode))
+
+-- Transaction locking helpers
+transactionLock :: String -> String -> IO ()
+transactionLock tID fp = liftIO $ do
+  findTrans <- withClientMongoDbConnection $ find (select ["tLocksID" =: tID] "TLOCKS_RECORD") >>= drainCursor
+  let tLocks = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransLocks) findTrans
+  case tLocks of
+    ((TransLocks _ lockedPaths):_) ->
+      withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID (lockedPaths ++ [fp]))
+    otherwise ->
+      withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID [fp])
+{-
+transactionUnlock :: String -> String -> IO ()
+transactionUnlock tID uName = liftIO $ do
+  findTrans <- withClientMongoDbConnection $ find (select ["tLocksID" =: tID] "TLOCKS_RECORD") >>= drainCursor
+  let tLocks = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe TransLocks) findTrans
+  case tLocks of
+    ((TransLocks _ lockedPaths):_) ->
+      withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID (lockedPaths ++ [fp]))
+    otherwise ->
+      withClientMongoDbConnection $ upsert (select ["tLocksID" =: tID] "TLOCKS_RECORD") $ toBSON (TransLocks tID [fp])
+-}
+
+-- Extract my details
+getDetails :: IO [Details]
+getDetails = do
+  let key = "MyDetails" :: String
+  findDetails <- withClientMongoDbConnection $ find (select ["clientKey" =: key] "DETAILS_RECORD") >>= drainCursor
+  return (catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Details) findDetails)
+
+-- Check if session key has expired
+validSession :: String -> IO Bool
+validSession expiryDate = do
+  time <- getCurrentTime
+  return ((cmpTime expiryDate (show time)) > 0.0)
 
 -- MongoDB client info
 withClientMongoDbConnection :: Action IO a -> IO a

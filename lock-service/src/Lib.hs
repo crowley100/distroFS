@@ -35,7 +35,6 @@ import           Network.HTTP.Client          (defaultManagerSettings,newManager
 import           Network.Wai
 import           Network.Wai.Handler.Warp
 import           Network.Wai.Logger
---import           RestClient
 import           Servant
 import qualified Servant.API                  as SC
 import qualified Servant.Client               as SC
@@ -66,41 +65,40 @@ lockService :: Server LockAPI
 lockService = lock
          :<|> unlock
          :<|> locked
-
   where
     -- attempts to lock a file for a specified user
     lock :: Message3 -> Handler Bool
-    lock (Message3 fname uName ticket) = liftIO $ do
-      warnLog $ "attempting to lock file: [" ++ fname ++ "]"
+    lock (Message3 fPath uName ticket) = liftIO $ do
+      warnLog $ "attempting to lock file: [" ++ fPath ++ "]"
       withMongoDbConnection $ do
-        docs <- find (select ["fName" =: fname] "LOCK_RECORD") >>= drainCursor
+        docs <- find (select ["fPath" =: fPath] "LOCK_RECORD") >>= drainCursor
         let x = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Lock) docs
         case x of
           ((Lock _ True _):_) -> return False -- islocked
           ((Lock _ False _):_) -> liftIO $ do
-              withMongoDbConnection $ upsert (select ["fName" =: fname] "LOCK_RECORD") $ toBSON $ (Lock fname True uName)
+              withMongoDbConnection $ upsert (select ["fPath" =: fPath] "LOCK_RECORD") $ toBSON $ (Lock fPath True uName)
               return True -- file sucessfully locked
           [] -> liftIO $ do -- file does not exist
-              withMongoDbConnection $ upsert (select ["fName" =: fname] "LOCK_RECORD") $ toBSON $ (Lock fname True uName)
+              withMongoDbConnection $ upsert (select ["fPath" =: fPath] "LOCK_RECORD") $ toBSON $ (Lock fPath True uName)
               return True
     lock _ = do
       return False
 
     -- attempts to unlock a file for a specified user
     unlock :: Message3 -> Handler Bool
-    unlock (Message3 fname uName ticket) = liftIO $ do
-      warnLog $ "attempting to unlock file: [" ++ fname ++ "]"
+    unlock (Message3 fPath uName ticket) = liftIO $ do
+      warnLog $ "attempting to unlock file: [" ++ fPath ++ "]"
       withMongoDbConnection $ do
-        docs <- find (select ["fName" =: fname] "LOCK_RECORD") >>= drainCursor
+        docs <- find (select ["fPath" =: fPath] "LOCK_RECORD") >>= drainCursor
         let x = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Lock) docs
         case x of
           ((Lock _ True owner):_) -> liftIO $ do
             case (uName == owner) of
               True -> do
-                withMongoDbConnection $ upsert (select ["fName" =: fname] "LOCK_RECORD") $ toBSON $ (Lock fname False uName)
+                withMongoDbConnection $ upsert (select ["fPath" =: fPath] "LOCK_RECORD") $ toBSON $ (Lock fPath False uName)
                 return True
               False -> do
-                putStrLn $ "Hey! " ++ uName ++ "doesn't own " ++ fname
+                putStrLn $ "Hey! " ++ uName ++ "doesn't own " ++ fPath
                 return False
           ((Lock _ False _):_) -> return True -- file is already unlocked
           [] -> return False -- file does not exist
@@ -109,10 +107,10 @@ lockService = lock
 
     -- checks if lock is available
     locked :: Message -> Handler Bool -- same as searchMessage
-    locked (Message fname ticket) = liftIO $ do
-      warnLog $ "checking if file: [" ++ fname ++ "] is locked"
+    locked (Message fPath ticket) = liftIO $ do
+      warnLog $ "checking if file: [" ++ fPath ++ "] is locked"
       withMongoDbConnection $ do
-        docs <- find (select ["fName" =: fname] "LOCK_RECORD") >>= drainCursor
+        docs <- find (select ["fPath" =: fPath] "LOCK_RECORD") >>= drainCursor
         let x = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Lock) docs
         case x of
           ((Lock _ True _):_) -> return True
