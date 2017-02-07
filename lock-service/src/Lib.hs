@@ -52,7 +52,7 @@ import           UseHaskellAPIServer
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog "Starting lock-service."
-  let settings = setPort 8080 $ setLogger aplogger defaultSettings -- port change?
+  let settings = setPort 8002 $ setLogger aplogger defaultSettings -- port change?
   runSettings settings app
 
 app :: Application
@@ -68,7 +68,10 @@ lockService = lock
   where
     -- attempts to lock a file for a specified user
     lock :: Message3 -> Handler Bool
-    lock (Message3 fPath uName ticket) = liftIO $ do
+    lock (Message3 encPath encName ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fPath = myDecryptAES (aesPad seshKey) encPath
+          uName = myDecryptAES (aesPad seshKey) encName
       warnLog $ "attempting to lock file: [" ++ fPath ++ "]"
       withMongoDbConnection $ do
         docs <- find (select ["fPath" =: fPath] "LOCK_RECORD") >>= drainCursor
@@ -86,7 +89,10 @@ lockService = lock
 
     -- attempts to unlock a file for a specified user
     unlock :: Message3 -> Handler Bool
-    unlock (Message3 fPath uName ticket) = liftIO $ do
+    unlock (Message3 encPath encName ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fPath = myDecryptAES (aesPad seshKey) encPath
+          uName = myDecryptAES (aesPad seshKey) encName
       warnLog $ "attempting to unlock file: [" ++ fPath ++ "]"
       withMongoDbConnection $ do
         docs <- find (select ["fPath" =: fPath] "LOCK_RECORD") >>= drainCursor

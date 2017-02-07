@@ -98,7 +98,7 @@ myDoCall f h p = (SC.runClientM f =<< env h p)
 
 doSignUp :: String -> String -> Maybe String -> Maybe String -> IO ()
 doSignUp name pass host port = do
-   resp <- myDoCall (loadPublicKey) host port
+   resp <- myDoCall (loadPublicKey) host (Just (show authPort))
    case resp of
      Left err -> do
        putStrLn "failed to get public key..."
@@ -106,11 +106,11 @@ doSignUp name pass host port = do
        let authKey = toPublicKey (PubKeyInfo a b c)
        cryptPass <- encryptPass authKey pass
        putStrLn "got the public key!"
-       doCall (signUp $ Login name cryptPass) host port
+       doCall (signUp $ Login name cryptPass) host (Just (show authPort))
 
 doLogIn :: String -> String -> Maybe String -> Maybe String -> IO ()
 doLogIn name pass host port = do
-  resp <- myDoCall (loadPublicKey) host port
+  resp <- myDoCall (loadPublicKey) host (Just (show authPort))
   case resp of
     Left err -> do
       putStrLn "failed to get public key..."
@@ -128,6 +128,25 @@ doLogIn name pass host port = do
               expiryDate = myDecryptAES (aesPad pass) (encExpiryDate)
           let myDetails = (Details key name mySesh ticket expiryDate) -- date doesn't require decryption
           withClientMongoDbConnection $ repsert (select ["clientKey" =: key] "DETAILS_RECORD") $ toBSON myDetails
+          -- TESTING CODE
+          myDetails <- getDetails
+          case myDetails of
+            ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
+              -- check if session expired
+              checkSession <- validSession myExpiryDate
+              case checkSession of
+                True -> do
+                  -- try to lock file for writing
+                  let encFp = myEncryptAES (aesPad mySesh) ("testFile.txt")
+                      encName = myEncryptAES (aesPad mySesh) (myName)
+                  tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) host (Just (show lockPort))
+                  case tryGetLock of
+                    Right True -> do
+                      putStrLn $ "WE DID IT!"
+                    otherwise -> putStrLn $ "DIDNT GET LOCK"
+                otherwise -> putStrLn $ "SESSION EXPIRED APPARENTLY :("
+            otherwise -> putStrLn $ "APPARENTLY MY DETAILS AREN'T REAL :O"
+          -- END OF TESTING
           putStrLn "login success!"
 
 -- lock service commands
