@@ -113,7 +113,9 @@ lockService = lock
 
     -- checks if lock is available
     locked :: Message -> Handler Bool -- same as searchMessage
-    locked (Message fPath ticket) = liftIO $ do
+    locked (Message encPath ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fPath = myDecryptAES (aesPad seshKey) encPath
       warnLog $ "checking if file: [" ++ fPath ++ "] is locked"
       withMongoDbConnection $ do
         docs <- find (select ["fPath" =: fPath] "LOCK_RECORD") >>= drainCursor

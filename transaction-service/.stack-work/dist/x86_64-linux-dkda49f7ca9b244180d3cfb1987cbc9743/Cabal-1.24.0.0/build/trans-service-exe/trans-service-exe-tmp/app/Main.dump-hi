@@ -1,11 +1,11 @@
 
 ==================== FINAL INTERFACE ====================
-2017-02-05 18:17:49.547543955 UTC
+2017-02-08 20:00:01.559761672 UTC
 
 interface main@main:Main 8001
-  interface hash: e737ec99c82ba65112ce07d851c66ab6
-  ABI hash: e4d0065b4ed620b94881979c6adc4eb6
-  export-list hash: 324a3f42b5bbb283ce5a6ff4cfe2c7a7
+  interface hash: 2cf181d10275e077f647256fa8c5cc36
+  ABI hash: 06f83a889a70dfc6fc4419d071a6477a
+  export-list hash: 09121d5723dd9784540a46707bf41dcd
   orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
   flag hash: 896dbb20af363681acc69a61fa6d257d
   sig of: Nothing
@@ -96,6 +96,7 @@ package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
                       parsec-3.1.11@parsec-3.1.11-BCos4GEVCuDB8dnOCBHO6X
                       pretty-1.1.3.3@pretty-1.1.3.3
                       primitive-0.6.1.0@primitive-0.6.1.0-Ip44DqhfCp21tTUYbecwa
+                      process-1.4.2.0@process-1.4.2.0
                       psqueues-0.2.2.2@psqueues-0.2.2.2-Abmw1tivvf7JJikDhHX0px
                       pureMD5-2.1.3@pureMD5-2.1.3-KuMjsfZZWDT9wovcuYXIJ5
                       random-1.1@random-1.1-54KmMHXjttlERYcr1mvsAe
@@ -116,7 +117,7 @@ package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
                       text-1.2.2.1@text-1.2.2.1-5QpmrLQApEZ4Ly9nMHWY0s
                       time-1.6.0.1@time-1.6.0.1
                       time-locale-compat-0.1.1.3@time-locale-compat-0.1.1.3-1j5dGjxxtiTDuAsO86iSk0
-                      trans-service-0.1.0.0@trans-service-0.1.0.0-9OwqRg7XVgmIU2NezbR8ln
+                      trans-service-0.1.0.0@trans-service-0.1.0.0-H3gX8iFiR5C8lABfZwOo2
                       transformers-0.5.2.0@transformers-0.5.2.0
                       transformers-base-0.4.4@transformers-base-0.4.4-25SoAegOdaF8rLEnnb5jPI
                       unix-2.7.2.0@unix-2.7.2.0
@@ -124,7 +125,7 @@ package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
                       unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW
                       unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW
                       uri-bytestring-0.2.2.0@uri-bytestring-0.2.2.0-HlVoBJYzvCi57p7OpVBB6a
-                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY
+                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt
                       utf8-string-1.0.1.1@utf8-string-1.0.1.1-2T8mBCuEDlXDo8zed8Onw4
                       uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx
                       vault-0.3.0.6@vault-0.3.0.6-CA9Xj82tAPe9nD32xVMgDG
@@ -164,8 +165,8 @@ orphans: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69:Crypto.Random.DRBG
          time-1.6.0.1@time-1.6.0.1:Data.Time.LocalTime.LocalTime
          transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Error
          unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW:Data.UnixTime.Diff
-         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:RSAhelpers
-         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPI
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Fusion.Bundle
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
 family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.Internal.Types
@@ -212,8 +213,8 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashMap.Base
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashSet
                          uri-bytestring-0.2.2.0@uri-bytestring-0.2.2.0-HlVoBJYzvCi57p7OpVBB6a:URI.ByteString.Types
-                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:RSAhelpers
-                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPI
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal.Builder
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector
@@ -224,7 +225,7 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV:Codec.Compression.Zlib.Stream
 import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
 import  -/  ghc-prim-0.5.0.0:GHC.Types 7378e41b7749213c8c88ceb6b0665d4c
-import  -/  trans-service-0.1.0.0@trans-service-0.1.0.0-9OwqRg7XVgmIU2NezbR8ln:Lib 369086dd405c18a9bffb6b5da679015d
+import  -/  trans-service-0.1.0.0@trans-service-0.1.0.0-H3gX8iFiR5C8lABfZwOo2:Lib 5505f339f0c9553cd085ebcbb0dd58bf
 d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule :: GHC.Types.Module
   {- HasNoCafRefs, Strictness: m,
@@ -237,12 +238,12 @@ d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule2 :: GHC.Types.TrName
   {- HasNoCafRefs, Strictness: m1,
      Unfolding: (GHC.Types.TrNameS "main"#) -}
-048e43cda1dfec6910877e9d51fd8e41
+3ad6a38b31c94b2409ef1a1344f70b56
   main :: GHC.Types.IO ()
   {- Arity: 1,
      Unfolding: InlineRule (0, True, True)
                 Lib.startApp1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
-83d57446a40ac50cfbf8e90e0eebef43
+910517199c654bcfcb6dfbf016bea6ba
   main1 ::
     GHC.Prim.State# GHC.Prim.RealWorld
     -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)

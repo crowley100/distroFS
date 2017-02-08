@@ -30,7 +30,7 @@ version = Version [0,1,0,0] []
 bindir, libdir, datadir, libexecdir, sysconfdir :: FilePath
 
 bindir     = "/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/bin"
-libdir     = "/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/auth-server-0.1.0.0-1YqB1E2q0TlJ3PwPBo2w40"
+libdir     = "/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/auth-server-0.1.0.0-2RxAqzru5Zz4c6xsLQunhQ"
 datadir    = "/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/share/x86_64-linux-ghc-8.0.1/auth-server-0.1.0.0"
 libexecdir = "/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/libexec"
 sysconfdir = "/home/lorcan/distroFS/auth-server/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/etc"

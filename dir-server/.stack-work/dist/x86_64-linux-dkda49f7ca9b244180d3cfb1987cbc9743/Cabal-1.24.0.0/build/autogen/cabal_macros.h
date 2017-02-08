@@ -245,7 +245,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH"
+#define CURRENT_COMPONENT_ID "dir-server-0.1.0.0-5V2hNxmEywy3FTXFmgdAed"
 
-#define CURRENT_PACKAGE_KEY "dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH"
+#define CURRENT_PACKAGE_KEY "dir-server-0.1.0.0-5V2hNxmEywy3FTXFmgdAed"
 

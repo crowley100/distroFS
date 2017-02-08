@@ -129,7 +129,7 @@ doLogIn name pass host port = do
           let myDetails = (Details key name mySesh ticket expiryDate) -- date doesn't require decryption
           withClientMongoDbConnection $ repsert (select ["clientKey" =: key] "DETAILS_RECORD") $ toBSON myDetails
           -- TESTING CODE
-          myDetails <- getDetails
+          {-myDetails <- getDetails
           case myDetails of
             ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
               -- check if session expired
@@ -145,7 +145,7 @@ doLogIn name pass host port = do
                       putStrLn $ "WE DID IT!"
                     otherwise -> putStrLn $ "DIDNT GET LOCK"
                 otherwise -> putStrLn $ "SESSION EXPIRED APPARENTLY :("
-            otherwise -> putStrLn $ "APPARENTLY MY DETAILS AREN'T REAL :O"
+            otherwise -> putStrLn $ "APPARENTLY MY DETAILS AREN'T REAL :O"-}
           -- END OF TESTING
           putStrLn "login success!"
 

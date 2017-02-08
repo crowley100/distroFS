@@ -61,7 +61,7 @@ startApp = withLogging $ \ aplogger -> do
 app :: String -> IO Application
 app port = do
   iExist port
-  forkIO $ stillAlive 5 port
+  forkIO $ stillAlive 10 port
   return $ serve api fileService
 
 api :: Proxy FileAPI
@@ -93,6 +93,7 @@ fileService = download
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       -- propagate change
       myDir <- fsName -- get env vairable
+      warnLog $ "DIRNAME: " ++ myDir
       propagate <- servDoCall (getPropagationInfo (Message myDir "ticket")) dirPort
       case propagate of
         Left e -> warnLog $ "propagation failure: " ++ (show e)
@@ -101,9 +102,10 @@ fileService = download
       return True
 
     updateShadowDB :: Shadow -> Handler Bool
-    updateShadowDB (Shadow tID file@(Message fPath fContents)) = liftIO $ do
-      warnLog $ "Entering [" ++ fPath ++ "] to ready to commit state."
-      let retVal = (Message tID fPath)
+    updateShadowDB (Shadow tID file@(Message fId fContents)) = liftIO $ do
+      warnLog $ "Entering [" ++ fId ++ "] to ready to commit state."
+      myName <- fsName
+      let retVal = (Message tID (myName ++ fId))
       withMongoDbConnection $ do
         findShadow <- find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
         let myShadow = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) findShadow
@@ -115,37 +117,49 @@ fileService = download
             let new = (ShadowInfo tID [file])
             withMongoDbConnection $ upsert (select ["trID" =: tID] "SHADOW_RECORD") $ toBSON new
       -- send ready to commit
-      servDoCall (readyCommit retVal) transPort
+      warnLog $ "Responding to transaction server!"
+      resp <- servDoCall (readyCommit retVal) transPort
+      case resp of
+        Left err -> warnLog $ "ERROR: " ++ (show err)
+        Right True -> warnLog $ "I got a true response."
+        Right False -> warnLog $ "I got a false response"
       return True
 
     -- create a new Message type for each file change
     pushTransaction :: String -> Handler Bool
     pushTransaction tID = liftIO $ do
       warnLog $ "Moving shadow entries for [" ++ tID ++ "] to storage."
-      findEntries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
-      let entries = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) findEntries
-      case entries of
-        ((ShadowInfo _ files):_) -> do
-          myCommit files
-          withMongoDbConnection $ delete (select ["trID" =: tID] "SHADOW_RECORD")
-        otherwise -> putStrLn "nothing left to commit..."
+      myDir <- fsName -- get env vairable
+      propagate <- servDoCall (getPropagationInfo (Message myDir "ticket")) dirPort
+      case propagate of -- propagate transaction to replicas
+        Left e -> warnLog $ "propagation failure: " ++ (show e)
+        Right replicas -> do
+          findEntries <- withMongoDbConnection $ find (select ["trID" =: tID] "SHADOW_RECORD") >>= drainCursor
+          let entries = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowInfo) findEntries
+          case entries of
+            ((ShadowInfo _ files):_) -> do
+              myCommit files replicas
+              withMongoDbConnection $ delete (select ["trID" =: tID] "SHADOW_RECORD")
+            otherwise -> putStrLn "nothing left to commit..."
       return True
 
     -- receive update from primary file server
     replicateFile :: Message -> Handler Bool
     replicateFile myFile@(Message fPath _) = liftIO $ do
       warnLog $ "Uploading file to db: [" ++ fPath ++ "]."
+      putStrLn $ "REPLICATING A FILE HERE!!!"
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       return True
 
 -- helper functions
 -- pushes changes for a particular transaction
-myCommit :: [Message] -> IO ()
-myCommit [] = do
+myCommit :: [Message] -> [FsAttributes] -> IO ()
+myCommit [] _ = do
   warnLog $ "Nothing left to commit."
-myCommit (entry@(Message fPath contents):rest) = do
+myCommit (entry@(Message fPath contents):rest) replicas = do
   withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON entry
-  myCommit rest
+  broadcast entry replicas -- update replicas
+  myCommit rest replicas
 
 -- keeps the directory server informed about the file server's status
 stillAlive :: Int -> String -> IO ()
@@ -169,16 +183,13 @@ iExist port = do
       case a of
         True -> do
           warnLog $ "I'm the primary!"
-          let status = (Message s "PRIMARY") -- could use bool
-          withMongoDbConnection $ upsert (select ["name" =: s] "STATE") $ toBSON status
         otherwise -> do
           warnLog $ "I'm only a replica..."
-          let status = (Message s "REPLICA") -- could use bool
-          withMongoDbConnection $ upsert (select ["name" =: s] "STATE") $ toBSON status
 
 -- broadcast changes to all replicas
 broadcast :: Message -> [FsAttributes] -> IO ()
 broadcast _ [] = warnLog $ "no replicas left for propagation"
 broadcast aFile ((FsAttributes _ port):rs) = do
+  putStrLn $ "BROADCASTING TO: port = " ++ port
   servDoCall (UseHaskellAPIClient.replicateFile aFile) ((read port) :: Int)
   broadcast aFile rs

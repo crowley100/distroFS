@@ -30,7 +30,7 @@ version = Version [0,1,0,0] []
 bindir, libdir, datadir, libexecdir, sysconfdir :: FilePath
 
 bindir     = "/home/lorcan/distroFS/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/bin"
-libdir     = "/home/lorcan/distroFS/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/lock-service-0.1.0.0-GAi6gdo4ZB6RKpP4gk6yX"
+libdir     = "/home/lorcan/distroFS/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/lock-service-0.1.0.0-4GZoEvUkiK89cLxbt9beEc"
 datadir    = "/home/lorcan/distroFS/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/share/x86_64-linux-ghc-8.0.1/lock-service-0.1.0.0"
 libexecdir = "/home/lorcan/distroFS/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/libexec"
 sysconfdir = "/home/lorcan/distroFS/lock-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/etc"

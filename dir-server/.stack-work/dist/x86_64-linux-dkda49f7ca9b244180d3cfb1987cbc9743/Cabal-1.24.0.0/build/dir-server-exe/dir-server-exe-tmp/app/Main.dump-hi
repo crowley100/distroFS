@@ -1,11 +1,11 @@
 
 ==================== FINAL INTERFACE ====================
-2017-02-05 18:20:28.081874138 UTC
+2017-02-08 20:00:44.715431053 UTC
 
 interface main@main:Main 8001
-  interface hash: fc8e74c1283f77532b72ae01491975da
-  ABI hash: 1b1937d3e74064ce34ae8609d58b1f06
-  export-list hash: 518df67e5e0537e8848022cd33da00b3
+  interface hash: 82708eb2421a64d768614caa3d401156
+  ABI hash: 1953e4947926317b0d67fe6257a8fec2
+  export-list hash: d28648e5dc567f1e68728130644f63f9
   orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
   flag hash: f0dd2c6540a004dd1439d510d41162e0
   sig of: Nothing
@@ -61,7 +61,7 @@ package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
                       data-default-instances-dlist-0.0.1@data-default-instances-dlist-0.0.1-7EnnOuRxBMR4O5lm1rpRqD
                       data-default-instances-old-locale-0.0.1@data-default-instances-old-locale-0.0.1-LPOHPEJCJUa53W1ZYaHB84
                       deepseq-1.4.2.0@deepseq-1.4.2.0
-                      dir-server-0.1.0.0@dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH
+                      dir-server-0.1.0.0@dir-server-0.1.0.0-5V2hNxmEywy3FTXFmgdAed
                       directory-1.2.6.2@directory-1.2.6.2
                       dlist-0.8.0.2@dlist-0.8.0.2-GWAMmbX9rLg3tqrbOizHGv
                       easy-file-0.2.1@easy-file-0.2.1-bAUkz2rC2kFhBbPjw2Of5
@@ -98,6 +98,7 @@ package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
                       parsec-3.1.11@parsec-3.1.11-BCos4GEVCuDB8dnOCBHO6X
                       pretty-1.1.3.3@pretty-1.1.3.3
                       primitive-0.6.1.0@primitive-0.6.1.0-Ip44DqhfCp21tTUYbecwa
+                      process-1.4.2.0@process-1.4.2.0
                       psqueues-0.2.2.2@psqueues-0.2.2.2-Abmw1tivvf7JJikDhHX0px
                       pureMD5-2.1.3@pureMD5-2.1.3-KuMjsfZZWDT9wovcuYXIJ5
                       random-1.1@random-1.1-54KmMHXjttlERYcr1mvsAe
@@ -125,7 +126,7 @@ package dependencies: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69
                       unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW
                       unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW
                       uri-bytestring-0.2.2.0@uri-bytestring-0.2.2.0-HlVoBJYzvCi57p7OpVBB6a
-                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY
+                      use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt
                       utf8-string-1.0.1.1@utf8-string-1.0.1.1-2T8mBCuEDlXDo8zed8Onw4
                       uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx
                       vault-0.3.0.6@vault-0.3.0.6-CA9Xj82tAPe9nD32xVMgDG
@@ -165,8 +166,8 @@ orphans: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69:Crypto.Random.DRBG
          time-1.6.0.1@time-1.6.0.1:Data.Time.LocalTime.LocalTime
          transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Error
          unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW:Data.UnixTime.Diff
-         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:RSAhelpers
-         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPI
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Fusion.Bundle
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
 family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.Internal.Types
@@ -213,8 +214,8 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashMap.Base
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashSet
                          uri-bytestring-0.2.2.0@uri-bytestring-0.2.2.0-HlVoBJYzvCi57p7OpVBB6a:URI.ByteString.Types
-                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:RSAhelpers
-                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-HR4KsafAg5HGznHF2f2BnY:UseHaskellAPI
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal.Builder
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector
@@ -224,7 +225,7 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed.Base
                          zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV:Codec.Compression.Zlib.Stream
 import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
-import  -/  dir-server-0.1.0.0@dir-server-0.1.0.0-IQM6qSPGn7CgzUgsX0CoH:Lib 8ae484b326f46cb4f5942c2d51217b9f
+import  -/  dir-server-0.1.0.0@dir-server-0.1.0.0-5V2hNxmEywy3FTXFmgdAed:Lib 98ac664033b3d197286a594483fb1694
 import  -/  ghc-prim-0.5.0.0:GHC.Types 7378e41b7749213c8c88ceb6b0665d4c
 d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule :: GHC.Types.Module
@@ -238,12 +239,12 @@ d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule2 :: GHC.Types.TrName
   {- HasNoCafRefs, Strictness: m1,
      Unfolding: (GHC.Types.TrNameS "main"#) -}
-81fa5bd655b1a872ac54e3ab9849fcd7
+bf2d5c7745c94d831b986d430b8befe5
   main :: GHC.Types.IO ()
   {- Arity: 1,
      Unfolding: InlineRule (0, True, True)
                 Lib.startApp1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
-9a8f8967029b55de3c65fa699137776d
+d8da4c6081d32898fabe2de684ec7e4e
   main1 ::
     GHC.Prim.State# GHC.Prim.RealWorld
     -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)

@@ -144,7 +144,7 @@ updateDirContents fp fDir = do
 doTheCommit :: [FileRef] -> IO ()
 doTheCommit [] = putStrLn "Nothing left to push from shadow to real db..."
 doTheCommit (ref@(FileRef fp dir _ _):rest) = do
-  withMongoDbConnection $ upsert (select ["filePath" =: fp] "FILEREF_RECORD") $ toBSON ref
+  withMongoDbConnection $ upsert (select ["fp" =: fp] "FILEREF_RECORD") $ toBSON ref
   updateDirContents fp dir
 
 -- begin service
@@ -192,7 +192,7 @@ dirService = lsDir
       updateServerStatus fDir
       withMongoDbConnection $ do
         let filepath = (fDir ++ fName)
-        findRef <- find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+        findRef <- find (select ["fp" =: filepath] "FILEREF_RECORD") >>= drainCursor
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) findRef
         case result of
           (ref@(FileRef fp dir fid fts):_) ->  liftIO $ do
@@ -217,11 +217,11 @@ dirService = lsDir
       case fs of
         [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
         (info@(FsInfo _ (Just (FsAttributes ip port)) _):_) -> do
-          docs <- withMongoDbConnection $ find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+          docs <- withMongoDbConnection $ find (select ["fp" =: filepath] "FILEREF_RECORD") >>= drainCursor
           let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
           case result of
             ((FileRef somePath someDir someID t):_) -> do
-              withMongoDbConnection $ upsert (select ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON (FileRef somePath someDir someID myTime)
+              withMongoDbConnection $ upsert (select ["fp" =: filepath] "FILEREF_RECORD") $ toBSON (FileRef somePath someDir someID myTime)
               return [(SendFileRef somePath someDir someID myTime ip port)]
             [] -> do
               -- update contents record
@@ -241,7 +241,7 @@ dirService = lsDir
                   let value = FileID dirName updatedID
                       result = (FileRef filepath fDir retID myTime)
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                  withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
+                  withMongoDbConnection $ upsert (select  ["fp" =: filepath] "FILEREF_RECORD") $ toBSON result
                   return [(SendFileRef filepath fDir retID myTime ip port)]
                 [] -> liftIO $ do
                   let retID = "0"
@@ -249,7 +249,7 @@ dirService = lsDir
                   let value = FileID fDir updatedID
                       result = (FileRef filepath fDir retID myTime)
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                  withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "FILEREF_RECORD") $ toBSON result
+                  withMongoDbConnection $ upsert (select  ["fp" =: filepath] "FILEREF_RECORD") $ toBSON result
                   return [(SendFileRef filepath fDir retID myTime ip port)]
 
     -- confirm fs is still alive
@@ -271,6 +271,9 @@ dirService = lsDir
         [] -> do
           let newEntry = (FsInfo dirName (Just (FsAttributes fsIP fsPort)) [])
           withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
+          -- update contents record to give user an accurate view of the system
+          let newContents = (FsContents dirName [])
+          withMongoDbConnection $ upsert (select  ["dirName" =: dirName] "CONTENTS_RECORD") $ toBSON newContents
           return True
         ((FsInfo _ primary replicas):_) -> do
           case primary of
@@ -278,7 +281,7 @@ dirService = lsDir
               let newReplica = (FsAttributes fsIP fsPort)
               let newEntry = (FsInfo dirName (Just pServer) (replicas ++ [newReplica]))
               withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
-              return True
+              return False -- tell fs it's a replica
             otherwise -> do -- handle edge case of no primary server
               let newPrimary = Just (FsAttributes fsIP fsPort)
               let newEntry = (FsInfo dirName newPrimary replicas)
@@ -287,6 +290,7 @@ dirService = lsDir
 
     getPropagationInfo :: Message -> Handler [FsAttributes]
     getPropagationInfo (Message directory ticket) = liftIO $ do
+      warnLog $ "RETURNING PROPAGATION INFO..."
       serverInfo <- getDirInfo directory
       case serverInfo of
         [] -> return ([] :: [FsAttributes])
@@ -303,7 +307,7 @@ dirService = lsDir
       case fs of
         [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
         (info@(FsInfo _ (Just (FsAttributes ip port)) _):_) -> do
-          docs <- withMongoDbConnection $ find (select ["filePath" =: filepath] "FILEREF_RECORD") >>= drainCursor
+          docs <- withMongoDbConnection $ find (select ["fp" =: filepath] "FILEREF_RECORD") >>= drainCursor
           let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
           case result of
             ((FileRef somePath someDir someID t):_) -> do
@@ -360,6 +364,7 @@ dirService = lsDir
     dirCommitShadow :: Message -> Handler Bool
     dirCommitShadow (Message tID ticket) = liftIO $ do
       findShadows <- withMongoDbConnection $ find (select ["dTID" =: tID] "SHADOW_REFS") >>= drainCursor
+      withMongoDbConnection $ delete (select  ["dTID" =: tID] "SHADOW_REFS")
       let shadowRefs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowRef) findShadows
       case shadowRefs of
         (shadow@(ShadowRef _ refs):_) -> do

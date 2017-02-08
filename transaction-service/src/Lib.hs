@@ -93,14 +93,15 @@ transService = beginTransaction
             return $ ResponseData retID
 
     tUpload :: FileTransaction -> Handler Bool
-    tUpload (FileTransaction transID change@(Modification (SendFileRef fp _ _ _ _ _) _)) = liftIO $ do
+    tUpload (FileTransaction transID change@(Modification (SendFileRef fp fdir fid _ _ _) _)) = liftIO $ do
       warnLog $ "Client uploading a modification to the transaction."
+      let fsPath = (fdir ++ fid)
       withMongoDbConnection $ do
         findTrans <- find (select ["transID" =: transID] "TRANSACTION_RECORD") >>= drainCursor
         let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
         case myTrans of
           ((Transaction someID changes paths):_) -> liftIO $ do
-            let newT = Transaction someID (changes ++ [change]) (paths ++ [fp])
+            let newT = Transaction someID (changes ++ [change]) (paths ++ [fsPath])
             withMongoDbConnection $ upsert (select  ["transID" =: someID] "TRANSACTION_RECORD") $ toBSON newT
             return True
           [] -> liftIO $ do
@@ -180,6 +181,7 @@ pushShadows tID ((Modification (SendFileRef _ _ fID _ ip port) fContents):rest) 
   pushShadows tID rest
 
 broadcastCommit :: String -> [Modification] -> IO ()
+broadcastCommit _ [] = warnLog $ "Finished broadcasting commits!"
 broadcastCommit tID ((Modification (SendFileRef _ _ _ _ ip port) fContents):rest) = do
   toFS <- servDoCall (pushTransaction tID) (read port)
   case toFS of

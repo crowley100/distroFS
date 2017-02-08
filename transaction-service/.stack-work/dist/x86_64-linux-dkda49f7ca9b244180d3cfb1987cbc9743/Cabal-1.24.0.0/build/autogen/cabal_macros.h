@@ -238,7 +238,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "trans-service-0.1.0.0-9OwqRg7XVgmIU2NezbR8ln"
+#define CURRENT_COMPONENT_ID "trans-service-0.1.0.0-H3gX8iFiR5C8lABfZwOo2"
 
-#define CURRENT_PACKAGE_KEY "trans-service-0.1.0.0-9OwqRg7XVgmIU2NezbR8ln"
+#define CURRENT_PACKAGE_KEY "trans-service-0.1.0.0-H3gX8iFiR5C8lABfZwOo2"
 

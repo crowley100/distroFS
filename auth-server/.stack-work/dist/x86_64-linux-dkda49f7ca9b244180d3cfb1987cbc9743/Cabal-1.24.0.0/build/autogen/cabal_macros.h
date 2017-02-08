@@ -280,7 +280,7 @@
   (major1) == 2 && (major2) <  26 || \
   (major1) == 2 && (major2) == 26 && (minor) <= 0)
 
-#define CURRENT_COMPONENT_ID "auth-server-0.1.0.0-1YqB1E2q0TlJ3PwPBo2w40"
+#define CURRENT_COMPONENT_ID "auth-server-0.1.0.0-2RxAqzru5Zz4c6xsLQunhQ"
 
-#define CURRENT_PACKAGE_KEY "auth-server-0.1.0.0-1YqB1E2q0TlJ3PwPBo2w40"
+#define CURRENT_PACKAGE_KEY "auth-server-0.1.0.0-2RxAqzru5Zz4c6xsLQunhQ"
 

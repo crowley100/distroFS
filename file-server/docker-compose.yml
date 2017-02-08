@@ -2,10 +2,10 @@ file-server:
   image: file-server
   environment:
     # The start of active environment variables. Set as needed.
-    - FS_NAME=fs11
+    - FS_NAME=fs1
     - FS_PORT=8081
     # - FS_IP=10.6.80.162
-    - MONGODB_IP=database
+    - MONGODB_IP=database1
     # - MONGODB_PORT
     # - MONGODB_DATABASE=USE_HASKELL_DB
     - LOG_LEVEL=DEBUG
@@ -15,8 +15,31 @@ file-server:
   ports:
     - "8081:8081"
   links:
-    - database
-database:
+    - database1
+database1:
   image: mongo:3.0.2
   ports:
-    - "27013:27017"
+    - "27030:27017"
+
+file-server-rep:
+  image: file-server
+  environment:
+    # The start of active environment variables. Set as needed.
+    - FS_NAME=fs1
+    - FS_PORT=8082
+    # - FS_IP=10.6.80.162
+    - MONGODB_IP=database2
+    # - MONGODB_PORT
+    # - MONGODB_DATABASE=USE_HASKELL_DB
+    - LOG_LEVEL=DEBUG
+    # - https_proxy=http://www-proxy.scss.tcd.ie:8080
+    # - http_proxy=http://www-proxy.scss.tcd.ie:8080
+  command: /usr/local/bin/file-server-exe
+  ports:
+    - "8082:8082"
+  links:
+    - database2
+database2:
+  image: mongo:3.0.2
+  ports:
+    - "27031:27017"

@@ -30,7 +30,7 @@ version = Version [0,1,0,0] []
 bindir, libdir, datadir, libexecdir, sysconfdir :: FilePath
 
 bindir     = "/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/bin"
-libdir     = "/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/trans-service-0.1.0.0-9OwqRg7XVgmIU2NezbR8ln"
+libdir     = "/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/lib/x86_64-linux-ghc-8.0.1/trans-service-0.1.0.0-H3gX8iFiR5C8lABfZwOo2"
 datadir    = "/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/share/x86_64-linux-ghc-8.0.1/trans-service-0.1.0.0"
 libexecdir = "/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/libexec"
 sysconfdir = "/home/lorcan/distroFS/transaction-service/.stack-work/install/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/lts-7.10/8.0.1/etc"
