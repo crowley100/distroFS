@@ -94,8 +94,11 @@ instance PrintResponse [FsContents] where
 -- let's put all the hard work in a helper...
 doCall f h p = reportExceptionOr (putStrLn . resp) (SC.runClientM f =<< env h p)
 
+-- another helper that allows us to use server response
 myDoCall f h p = (SC.runClientM f =<< env h p)
 
+-- | Initialises communication with the system for a new user
+--  by talking to the authentication server.
 doSignUp :: String -> String -> Maybe String -> Maybe String -> IO ()
 doSignUp name pass host port = do
    resp <- myDoCall (loadPublicKey) host (Just (show authPort))
@@ -108,6 +111,7 @@ doSignUp name pass host port = do
        putStrLn "got the public key!"
        doCall (signUp $ Login name cryptPass) host (Just (show authPort))
 
+-- | Authentication server provides the client with communication credentials.
 doLogIn :: String -> String -> Maybe String -> Maybe String -> IO ()
 doLogIn name pass host port = do
   resp <- myDoCall (loadPublicKey) host (Just (show authPort))
@@ -128,70 +132,15 @@ doLogIn name pass host port = do
               expiryDate = myDecryptAES (aesPad pass) (encExpiryDate)
           let myDetails = (Details key name mySesh ticket expiryDate) -- date doesn't require decryption
           withClientMongoDbConnection $ repsert (select ["clientKey" =: key] "DETAILS_RECORD") $ toBSON myDetails
-          -- TESTING CODE
-          {-myDetails <- getDetails
-          case myDetails of
-            ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
-              -- check if session expired
-              checkSession <- validSession myExpiryDate
-              case checkSession of
-                True -> do
-                  -- try to lock file for writing
-                  let encFp = myEncryptAES (aesPad mySesh) ("testFile.txt")
-                      encName = myEncryptAES (aesPad mySesh) (myName)
-                  tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) host (Just (show lockPort))
-                  case tryGetLock of
-                    Right True -> do
-                      putStrLn $ "WE DID IT!"
-                    otherwise -> putStrLn $ "DIDNT GET LOCK"
-                otherwise -> putStrLn $ "SESSION EXPIRED APPARENTLY :("
-            otherwise -> putStrLn $ "APPARENTLY MY DETAILS AREN'T REAL :O"-}
-          -- END OF TESTING
           putStrLn "login success!"
 
--- lock service commands
--- now redundant
-{-
-doLockFile :: String -> Maybe String -> Maybe String -> IO ()
-doLockFile fName = doCall $ lock fName
-
-doUnlockFile :: String -> Maybe String -> Maybe String -> IO ()
-doUnlockFile fName = doCall $ unlock fName
-
-doFileLocked :: String -> Maybe String -> Maybe String -> IO ()
-doFileLocked fName = doCall $ locked $ Just fName
--}
--- file service commands
--- redundant (now integrated with directory server)
-doDownloadFile :: String -> Maybe String -> Maybe String -> IO ()
-doDownloadFile fPath h p = do
-  getFile <- myDoCall (download $ Just fPath) h p
-  case getFile of
-    Left err -> do
-      putStrLn "error retrieving file..."
-    Right ((Message file_path text):rest) ->
-      writeFile file_path text
-
-doUploadFile :: String -> Maybe String -> Maybe String -> IO ()
-doUploadFile fPath h p = do
-  let owner = "clientTransaction" :: String
-  contents <- readFile fPath
-  -- check if transaction in progress
-  withClientMongoDbConnection $ do
-    findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-    let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-    case myTrans of
-      ((CurrentTrans _ tID):_) -> liftIO $ do
-        putStrLn "Pushing modification to transaction server..."
-      [] -> liftIO $ do
-        putStrLn "Uploading file to file server..."
-        doCall (upload $  Message fPath contents) h p
-
--- directory service commands
+-- ls commands giving the client a view of the file system
+-- | Lists file servers acting as directories to the client.
 doLsDir :: Maybe String -> Maybe String -> IO ()
 doLsDir h p = do
-   doCall lsDir h (Just (show dirPort))
+ doCall lsDir h (Just (show dirPort))
 
+-- | Lists contents of a particular directory.
 doLsFile :: String -> Maybe String -> Maybe String -> IO ()
 doLsFile dirName h p = do
   getFiles <- myDoCall (lsFile $ Just dirName) h (Just (show dirPort))
@@ -204,7 +153,8 @@ doLsFile dirName h p = do
         [x] -> do putStrLn $ "Files: " ++ x
         xs -> do putStrLn $ "Files: " ++ (DL.intercalate "\n " xs)
 
--- can combine this logic with download when integrating
+-- | File download, client asks directory server for directory / file communication
+--  details, client then uses these details to request the file.
 doFileQuery :: String -> String -> Maybe String -> Maybe String -> IO ()
 doFileQuery fileName dirName h p = do
   getRef <- myDoCall (fileQuery $ Message fileName dirName) h (Just (show dirPort))
@@ -226,28 +176,26 @@ doFileQuery fileName dirName h p = do
                   -- cache file
                   let cacheRef = (FileRef fPath dirName fID myTime)
                   withClientMongoDbConnection $ upsert (select ["fp" =: fPath] "CLIENT_CACHE") $ toBSON cacheRef
-                  writeFile fileName text -- use global file name (rather than ID)
+                  writeFile fileName text
             otherwise -> putStrLn $ "Using cached: " ++ dirName ++ "/" ++ fileName
         [] -> do
           putStrLn (fileName ++ " does not exist in " ++ dirName)
 
--- can combine this logic with upload when integrating
+-- | File upload, client asks directory server for directory / file communication
+--  details, client then uses these details to push the file, provided the client can aquire the lock.
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
   let filePath = (dirName ++ fileName)
-  -- get user details
-  myDetails <- getDetails
+  myDetails <- getDetails -- get user details
   case myDetails of
     ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
-      -- check if session expired
-      checkSession <- validSession myExpiryDate
+      checkSession <- validSession myExpiryDate -- check if session expired
       case checkSession of
         True -> do
-          -- try to lock file for writing
           let encFp = myEncryptAES (aesPad mySesh) (filePath)
               encName = myEncryptAES (aesPad mySesh) (myName)
           tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) h (Just (show lockPort))
-          case tryGetLock of
+          case tryGetLock of -- try to lock file for writing
             Right True -> do
               -- check if transaction in progress
               let owner = "clientTransaction" :: String
@@ -287,7 +235,8 @@ doMapFile fileName dirName h p = do
         otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
     otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
 
--- transaction service commands
+-- | Client retrieves a transaction ID from the transaction service
+--  all subsequent uploads will be part of this transaction until client commits/aborts.
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
 doBeginTrans h p = do
   getTransID <- myDoCall beginTransaction h (Just (show transPort))
@@ -310,11 +259,9 @@ doBeginTrans h p = do
             withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
           [] -> liftIO $ do
             putStrLn "starting new transaction..."
-            -- set transaction boolean to true ?? or just db entry existence as check...
             withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
 
-
--- fetch tID from client db, talk to transaction server, remove ID from db
+-- | Fetch tID from client db, talk to transaction server to proceed with transaction, remove ID from db.
 doCommit :: Maybe String -> Maybe String -> IO ()
 doCommit h p = do
   myDetails <- getDetails
@@ -338,7 +285,7 @@ doCommit h p = do
         otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
     otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
 
--- fetch tID from client db, talk to transaction server, remove ID from db
+-- | Fetch tID from client db, talk to transaction server to abort transaction, remove ID from db.
 doAbort :: Maybe String -> Maybe String -> IO ()
 doAbort h p = do
   myDetails <- getDetails
@@ -371,13 +318,10 @@ someFunc = do
   join $ execParser =<< opts
 
 -- | Defined in the applicative style, opts provides a declaration of the entire command line
---   parser structure. To add a new command just follow the example of the existing commands. A
---   new 'doCall' function should be defined for your new command line option, with a type matching the
---   ordering of the application of arguments in the <$> arg1 <*> arg2 .. <*> argN style below.
+--   parser structure.
 opts :: IO (ParserInfo (IO ()))
 opts = do
   progName <- getProgName
-
   return $ info (   helper
                 <*> subparser
                        (  command "sign-up"
@@ -392,37 +336,6 @@ opts = do
                                            <*> argument str (metavar "Password")
                                            <*> serverIpOption
                                            <*> serverPortOption) "Logs user into the remote server." )
-                      -- <> command "log-out"
-                        --           (withInfo ( doLogOut
-                          --                 <$> argument str (metavar "UserName")
-                            --               <*> argument str (metavar "Password")
-                              --             <*> serverIpOption
-                                --           <*> serverPortOption) "Logs user out of the remote server." )
-                       {-<> command "lock"
-                                   (withInfo ( doLockFile
-                                            <$> argument str (metavar "fName")
-                                            <*> serverIpOption
-                                            <*> serverPortOption) "Lock a file." )
-                       <> command "unlock"
-                                   (withInfo ( doUnlockFile
-                                            <$> argument str (metavar "fName")
-                                            <*> serverIpOption
-                                            <*> serverPortOption) "Unlock a file." )
-                       <> command "is-locked"
-                                   (withInfo ( doFileLocked
-                                            <$> argument str (metavar "fName")
-                                            <*> serverIpOption
-                                            <*> serverPortOption) "Check if file is locked." )-}
-                       <> command "download"
-                                   (withInfo ( doDownloadFile
-                                            <$> argument str (metavar "fPath")
-                                            <*> serverIpOption
-                                            <*> serverPortOption) "Download a file." )
-                       <> command "upload"
-                                   (withInfo ( doUploadFile
-                                            <$> argument str (metavar "fPath")
-                                            <*> serverIpOption
-                                            <*> serverPortOption) "Upload a file." )
                        <> command "ls-dir"
                                    (withInfo ( doLsDir
                                             <$> serverIpOption
@@ -457,7 +370,7 @@ opts = do
                                             <$> serverIpOption
                                             <*> serverPortOption) "Abort current transaction." )))
              (  fullDesc
-             <> progDesc (progName ++ " is a simple test client for the use-haskell service." ++
+             <> progDesc (progName ++ " is a simple client proxy for the distroFS file system." ++
                           " Try " ++ whiteCode ++ progName ++ " --help " ++ resetCode ++ " for more information. To " ++
                           " see the details of any command, " ++  "try " ++ whiteCode ++ progName ++ " COMMAND --help" ++
                           resetCode ++ ". The application supports bash completion. To enable, " ++
@@ -555,8 +468,6 @@ serverPortOption = optional $ strOption (  long "port"
 
 -- | function to build the client environment for performing a servant client rest call
 -- It uses the host name and port parameters if Just x, or else uses envrionment variables
--- This uses an applicative programming style that is very condensed, and easy to understand when you get used to it,
--- compared to the alternative sequence of calls and subsequent record construction.
 
 env :: Maybe String -> Maybe String -> IO SC.ClientEnv
 env host port = SC.ClientEnv <$> newManager defaultManagerSettings
@@ -583,9 +494,6 @@ env host port = SC.ClientEnv <$> newManager defaultManagerSettings
    -- function that looks up environment variable and returns the result of running funtion fn over it
    -- or if the environment variable does not exist, returns the value def. The function will optionally log a
    -- warning based on Boolean tag
-
-   -- note that this is a good example of a commonly required function that could usefully be put in a shared library
-   -- but I'm not going to do that for now.
 
    devEnv :: Show a
           => String        -- Environment Variable name

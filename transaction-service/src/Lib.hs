@@ -150,6 +150,7 @@ transService = beginTransaction
                 case toDir of
                   Left _ -> warnLog $ "service communication failure. (transaction -> dir server)"
                   Right _ -> warnLog $ "service communication success. (transaction -> dir server)"
+                withMongoDbConnection $ delete (select  ["transID" =: tID] "TRANSACTION_RECORD")
               otherwise -> liftIO $ do
                 warnLog $ "Ready to commit: " ++ fPath
             let newT = Transaction someID changes newPaths
