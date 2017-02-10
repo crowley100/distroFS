@@ -47,16 +47,17 @@ import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
 import           UseHaskellAPIClient
+import           UseHaskellAPITypes
 import           System.Random
 
-type MyDirAPI = "lsDir"               :> Get '[JSON] [FsContents]
-           :<|> "lsFile"              :> QueryParam "name" String :> Get '[JSON] [FsContents]
-           :<|> "fileQuery"           :> ReqBody '[JSON] Message :> Get '[JSON] [SendFileRef]
-           :<|> "mapFile"             :> ReqBody '[JSON] Message :> Get '[JSON] [SendFileRef]
+type MyDirAPI = "lsDir"               :> ReqBody '[JSON] StrWrap :> Get '[JSON] ResponseData
+           :<|> "lsFile"              :> ReqBody '[JSON] Message :> Get '[JSON] [FsContents]
+           :<|> "fileQuery"           :> ReqBody '[JSON] Message3 :> Get '[JSON] [SendFileRef]
+           :<|> "mapFile"             :> ReqBody '[JSON] Message3 :> Get '[JSON] [SendFileRef]
            :<|> "ping"                :> ReqBody '[JSON] Message :> Post '[JSON] Bool
            :<|> "registerFS"          :> ReqBody '[JSON] Message3 :> Post '[JSON] Bool
            :<|> "getPropagationInfo"  :> ReqBody '[JSON] Message :> Get '[JSON] [FsAttributes]
-           :<|> "dirShadowing"        :> ReqBody '[JSON] Message3 :> Post '[JSON] [SendFileRef]
+           :<|> "dirShadowing"        :> ReqBody '[JSON] Message4 :> Post '[JSON] [SendFileRef]
            :<|> "dirCommitShadow"     :> ReqBody '[JSON] Message  :> Post '[JSON] Bool
            :<|> "dirAbortShadow"      :> ReqBody '[JSON] Message  :> Post '[JSON] Bool
 
@@ -147,11 +148,17 @@ doTheCommit (ref@(FileRef fp dir _ _):rest) = do
   withMongoDbConnection $ upsert (select ["fp" =: fp] "FILEREF_RECORD") $ toBSON ref
   updateDirContents fp dir
 
+-- produce an encrypted list of registered directories
+listEncDirs :: String -> [FsContents] -> ResponseData
+listEncDirs seshKey [] = (ResponseData (myEncryptAES (aesPad seshKey) ("No registered directories...")))
+listEncDirs seshKey [dir] = (ResponseData (myEncryptAES (aesPad seshKey) (dirName dir)))
+listEncDirs seshKey dirs = (ResponseData (myEncryptAES (aesPad seshKey) (DL.intercalate "  " $ DL.map dirName dirs)))
+
 -- begin service
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
 startApp = withLogging $ \ aplogger -> do
   warnLog $ "Starting directory-service."
-  let settings = setPort 8000 $ setLogger aplogger defaultSettings -- port change?
+  let settings = setPort dirPort $ setLogger aplogger defaultSettings -- port change?
   runSettings settings app
 
 app :: Application
@@ -172,22 +179,31 @@ dirService = lsDir
         :<|> dirCommitShadow
         :<|> dirAbortShadow
   where
-    lsDir :: Handler [FsContents]
-    lsDir = liftIO $ do
+    lsDir :: StrWrap -> Handler ResponseData
+    lsDir (StrWrap ticket) = liftIO $ do
       warnLog $ "Client listing directories"
-      withMongoDbConnection $ do
-        dirs <- find (select [] "CONTENTS_RECORD") >>= drainCursor
-        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) dirs
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      findDirs <- withMongoDbConnection $ find (select [] "CONTENTS_RECORD") >>= drainCursor
+      return $ listEncDirs seshKey (catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) findDirs)
 
-    lsFile :: Maybe String -> Handler [FsContents]
-    lsFile (Just directory) = liftIO $ do
+    lsFile :: Message -> Handler [FsContents]
+    lsFile (Message encDir ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let directory = myDecryptAES (aesPad seshKey) (encDir)
       warnLog $ "Client listing files in directory: " ++ directory
-      withMongoDbConnection $ do
-        contents <- find (select ["dirName" =: directory] "CONTENTS_RECORD") >>= drainCursor
-        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) contents
+      findContents <- withMongoDbConnection $ find (select ["dirName" =: directory] "CONTENTS_RECORD") >>= drainCursor
+      let contents = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) findContents
+      case contents of
+        ((FsContents _ files):_) -> do
+          let encFiles = DL.map (myEncryptAES (aesPad seshKey)) files
+          return [(FsContents encDir encFiles)]
+        otherwise -> return ([] :: [FsContents])
 
-    fileQuery :: Message -> Handler [SendFileRef]
-    fileQuery query@(Message fName fDir) = liftIO $ do
+    fileQuery :: Message3 -> Handler [SendFileRef]
+    fileQuery query@(Message3 encFName encFDir ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fName = myDecryptAES (aesPad seshKey) (encFName)
+          fDir = myDecryptAES (aesPad seshKey) (encFDir)
       warnLog $ "Client querying file ["++fName++"] in directory: " ++ fDir
       updateServerStatus fDir
       withMongoDbConnection $ do
@@ -196,33 +212,49 @@ dirService = lsDir
         let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) findRef
         case result of
           (ref@(FileRef fp dir fid fts):_) ->  liftIO $ do
+            let encFp = myEncryptAES (aesPad seshKey) (fp)
+                encDir = myEncryptAES (aesPad seshKey) (dir)
+                encFid = myEncryptAES (aesPad seshKey) (fid)
+                encFts = myEncryptAES (aesPad seshKey) (fts)
             servers <- getDirInfo fDir
             case servers of
               [] -> return ([] :: [SendFileRef]) -- directory not found
               (fs@(FsInfo name (Just (FsAttributes newIp newPort)) []):_) -> do
-                return [(SendFileRef fp dir fid fts newIp newPort)] -- no replicas, use primary
+                let encIp = myEncryptAES (aesPad seshKey) (newIp)
+                    encPort = myEncryptAES (aesPad seshKey) (newPort)
+                return [(SendFileRef encFp encDir encFid encFts encIp encPort)] -- no replicas, use primary
               (fs@(FsInfo name _ replicas):_) -> liftIO $ do
                 (FsAttributes newIp newPort) <- loadBalance replicas
-                return [(SendFileRef fp dir fid fts newIp newPort)]
+                let encIp = myEncryptAES (aesPad seshKey) (newIp)
+                    encPort = myEncryptAES (aesPad seshKey) (newPort)
+                return [(SendFileRef encFp encDir encFid encFts encIp encPort)]
           [] -> return ([] :: [SendFileRef]) -- file not found
 
-    mapFile :: Message -> Handler [SendFileRef]
-    mapFile val@(Message fName fDir) = liftIO $ do
+    mapFile :: Message3 -> Handler [SendFileRef]
+    mapFile val@(Message3 encFName encFDir ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fName = myDecryptAES (aesPad seshKey) (encFName)
+          fDir = myDecryptAES (aesPad seshKey) (encFDir)
       warnLog $ "Client mapping file ["++fName++"] in directory: " ++ fDir
       updateServerStatus fDir
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
       let filepath = (fDir ++ fName)
+          encTime = myEncryptAES (aesPad seshKey) (myTime)
+          encFP = myEncryptAES (aesPad seshKey) (filepath)
       fs <- getDirInfo fDir
       case fs of
         [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
         (info@(FsInfo _ (Just (FsAttributes ip port)) _):_) -> do
+          let encIP = myEncryptAES (aesPad seshKey) (ip)
+              encPort = myEncryptAES (aesPad seshKey) (port)
           docs <- withMongoDbConnection $ find (select ["fp" =: filepath] "FILEREF_RECORD") >>= drainCursor
           let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
           case result of
             ((FileRef somePath someDir someID t):_) -> do
+              let encFID = myEncryptAES (aesPad seshKey) (someID)
               withMongoDbConnection $ upsert (select ["fp" =: filepath] "FILEREF_RECORD") $ toBSON (FileRef somePath someDir someID myTime)
-              return [(SendFileRef somePath someDir someID myTime ip port)]
+              return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
             [] -> do
               -- update contents record
               contents <- withMongoDbConnection $ find (select ["dirName" =: fDir] "CONTENTS_RECORD") >>= drainCursor
@@ -240,17 +272,19 @@ dirService = lsDir
                       updatedID = (show ((read myID) + 1))
                   let value = FileID dirName updatedID
                       result = (FileRef filepath fDir retID myTime)
+                      encFID = myEncryptAES (aesPad seshKey) (retID)
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                   withMongoDbConnection $ upsert (select  ["fp" =: filepath] "FILEREF_RECORD") $ toBSON result
-                  return [(SendFileRef filepath fDir retID myTime ip port)]
+                  return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
                 [] -> liftIO $ do
                   let retID = "0"
                       updatedID = "1"
                   let value = FileID fDir updatedID
                       result = (FileRef filepath fDir retID myTime)
+                      encFID = myEncryptAES (aesPad seshKey) (retID)
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                   withMongoDbConnection $ upsert (select  ["fp" =: filepath] "FILEREF_RECORD") $ toBSON result
-                  return [(SendFileRef filepath fDir retID myTime ip port)]
+                  return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
 
     -- confirm fs is still alive
     ping :: Message -> Handler Bool
@@ -296,21 +330,30 @@ dirService = lsDir
         [] -> return ([] :: [FsAttributes])
         ((FsInfo _ _ replicas):_) -> return replicas
 
-    dirShadowing :: Message3 -> Handler [SendFileRef]
-    dirShadowing (Message3 tID fName fDir) = liftIO $ do
+    dirShadowing :: Message4 -> Handler [SendFileRef]
+    dirShadowing (Message4 encTID encFName encFDir ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fName = myDecryptAES (aesPad seshKey) (encFName)
+          fDir = myDecryptAES (aesPad seshKey) (encFDir)
+          tID = myDecryptAES (aesPad seshKey) (encTID)
       warnLog $ "Shadowing ["++fName++"] in directory: " ++ fDir
       updateServerStatus fDir
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
       let filepath = (fDir ++ fName)
+          encTime = myEncryptAES (aesPad seshKey) (myTime)
+          encFP = myEncryptAES (aesPad seshKey) (filepath)
       fs <- getDirInfo fDir
       case fs of
         [] -> return ([] :: [SendFileRef]) -- Can handle empty list on client side
         (info@(FsInfo _ (Just (FsAttributes ip port)) _):_) -> do
+          let encIP = myEncryptAES (aesPad seshKey) (ip)
+              encPort = myEncryptAES (aesPad seshKey) (port)
           docs <- withMongoDbConnection $ find (select ["fp" =: filepath] "FILEREF_RECORD") >>= drainCursor
           let result = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FileRef) docs
           case result of
             ((FileRef somePath someDir someID t):_) -> do
+              let encFID = myEncryptAES (aesPad seshKey) (someID)
               findShadows <- withMongoDbConnection $ find (select ["dTID" =: tID] "SHADOW_REFS") >>= drainCursor
               let shadowRefs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowRef) findShadows
               case shadowRefs of
@@ -321,7 +364,7 @@ dirService = lsDir
                 otherwise -> do -- new transaction
                   let newEntry = (ShadowRef tID [(FileRef somePath someDir someID myTime)])
                   withMongoDbConnection $ upsert (select ["dTID" =: tID] "SHADOW_REFS") $ toBSON newEntry
-              return [(SendFileRef somePath someDir someID myTime ip port)]
+              return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
             [] -> do
               -- no need to shadow ids
               ids <- withMongoDbConnection $ find (select ["directory" =: fDir] "ID_RECORD") >>= drainCursor
@@ -332,6 +375,7 @@ dirService = lsDir
                       updatedID = (show ((read myID) + 1))
                   let value = FileID dirName updatedID
                       result = (FileRef filepath fDir retID myTime)
+                      encFID = myEncryptAES (aesPad seshKey) (retID)
                   findShadows <- withMongoDbConnection $ find (select ["dTID" =: tID] "SHADOW_REFS") >>= drainCursor
                   let shadowRefs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowRef) findShadows
                   case shadowRefs of
@@ -342,12 +386,13 @@ dirService = lsDir
                       let newEntry = (ShadowRef tID [result])
                       withMongoDbConnection $ upsert (select  ["filePath" =: filepath] "SHADOW_REFS") $ toBSON newEntry
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                  return [(SendFileRef filepath fDir retID myTime ip port)]
+                  return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
                 [] -> liftIO $ do
                   let retID = "0"
                       updatedID = "1"
                   let value = FileID fDir updatedID
                       result = (FileRef filepath fDir retID myTime)
+                      encFID = myEncryptAES (aesPad seshKey) (retID)
                   findShadows <- withMongoDbConnection $ find (select ["dTID" =: tID] "SHADOW_REFS") >>= drainCursor
                   let shadowRefs = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe ShadowRef) findShadows
                   case shadowRefs of
@@ -358,7 +403,7 @@ dirService = lsDir
                       let newEntry = (ShadowRef tID [result])
                       withMongoDbConnection $ upsert (select  ["dTID" =: tID] "SHADOW_REFS") $ toBSON newEntry
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
-                  return [(SendFileRef filepath fDir retID myTime ip port)]
+                  return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
 
     -- maybe dont use ticket below as it is server-server comms
     dirCommitShadow :: Message -> Handler Bool

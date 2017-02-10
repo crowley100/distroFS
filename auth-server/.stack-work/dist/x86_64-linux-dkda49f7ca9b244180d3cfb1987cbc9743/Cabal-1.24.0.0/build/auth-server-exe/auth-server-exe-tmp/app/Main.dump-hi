@@ -1,10 +1,10 @@
 
 ==================== FINAL INTERFACE ====================
-2017-02-08 20:00:34.635444467 UTC
+2017-02-10 19:36:32.732440877 UTC
 
 interface main@main:Main 8001
-  interface hash: 636106bf295261df229d08dba82df641
-  ABI hash: fc2611219f03a09a1568f491a3a24e77
+  interface hash: 5de35cd45d44bd407086b714e81dd4d1
+  ABI hash: c16387ce18805fe46510484b10ae7a6d
   export-list hash: d60bb3d5270c00ea8aab6835b8237138
   orphan hash: 693e9af84d3dfcc71e640e005bdc5e2e
   flag hash: 824735620936f086eb9d58cffff3b594
@@ -166,7 +166,7 @@ orphans: DRBG-0.5.5@DRBG-0.5.5-8bb72Z4ll6NCO7HwSjNk69:Crypto.Random.DRBG
          transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Error
          unix-time-0.3.7@unix-time-0.3.7-HcxGsrnTmTlC98pyanzoMW:Data.UnixTime.Diff
          use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers
-         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI
+         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPITypes
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Fusion.Bundle
          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
 family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzFS6V3sZR:Data.Attoparsec.Internal.Types
@@ -214,7 +214,7 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          unordered-containers-0.2.7.1@unordered-containers-0.2.7.1-Eo9jd5DMz45DhBLCG8skzW:Data.HashSet
                          uri-bytestring-0.2.2.0@uri-bytestring-0.2.2.0-HlVoBJYzvCi57p7OpVBB6a:URI.ByteString.Types
                          use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers
-                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI
+                         use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPITypes
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal
                          uuid-types-1.0.3@uuid-types-1.0.3-1qmdgBeDGlbCUibOmxVGqx:Data.UUID.Types.Internal.Builder
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector
@@ -223,7 +223,7 @@ family instance modules: attoparsec-0.13.1.0@attoparsec-0.13.1.0-5Olk1S76r1CDYzF
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed
                          vector-0.11.0.0@vector-0.11.0.0-BEDZb5o2QOhGbIm6ky7rl6:Data.Vector.Unboxed.Base
                          zlib-0.6.1.2@zlib-0.6.1.2-4CWLN1T27kOJhNvXgy46ZV:Codec.Compression.Zlib.Stream
-import  -/  auth-server-0.1.0.0@auth-server-0.1.0.0-2RxAqzru5Zz4c6xsLQunhQ:Lib da39eb3c045117ecf406529cc0f2302c
+import  -/  auth-server-0.1.0.0@auth-server-0.1.0.0-2RxAqzru5Zz4c6xsLQunhQ:Lib d5b16abb53fb7f33b3df8ece4ec5fd4a
 import  -/  base-4.9.0.0:Prelude b9bddb97799837fe67a8d00939a5b6c3
 import  -/  ghc-prim-0.5.0.0:GHC.Types 7378e41b7749213c8c88ceb6b0665d4c
 d6831ef04cb9301b090dfae6f7bb7ec7
@@ -238,12 +238,12 @@ d6831ef04cb9301b090dfae6f7bb7ec7
   $trModule2 :: GHC.Types.TrName
   {- HasNoCafRefs, Strictness: m1,
      Unfolding: (GHC.Types.TrNameS "main"#) -}
-019e05da84b5b3716fb33e6f5592ef9b
+1550398fb6ef35e98c3d159cde583b2a
   main :: GHC.Types.IO ()
   {- Arity: 1,
      Unfolding: InlineRule (0, True, True)
                 Lib.startApp1 `cast` (Sym (GHC.Types.N:IO[0] <()>_R)) -}
-1910d560132657c80cc81b81e122c36a
+ea4b7a4a7645cf25652afec3a7f4508a
   main1 ::
     GHC.Prim.State# GHC.Prim.RealWorld
     -> (# GHC.Prim.State# GHC.Prim.RealWorld, () #)

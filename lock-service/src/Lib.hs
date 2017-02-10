@@ -46,6 +46,7 @@ import           System.Log.Handler.Syslog
 import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           UseHaskellAPITypes
 
 
 

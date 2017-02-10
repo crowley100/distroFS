@@ -51,6 +51,7 @@ import           System.Log.Logger
 import           System.Random
 import           UseHaskellAPI
 import           UseHaskellAPIServer
+import           UseHaskellAPITypes
 import           RSAhelpers
 import           Crypto.Random.DRBG
 

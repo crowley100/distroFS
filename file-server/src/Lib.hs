@@ -47,6 +47,7 @@ import           System.Log.Logger
 import           UseHaskellAPI
 import           UseHaskellAPIServer
 import           UseHaskellAPIClient
+import           UseHaskellAPITypes
 import           Control.Concurrent (forkIO, threadDelay)
 
 startApp :: IO ()    -- set up wai logger for service to output apache style logging for rest calls
@@ -75,20 +76,28 @@ fileService = download
          :<|> replicateFile
   where
     -- using Message type to send (fPath, fConents)
-    download :: Maybe String -> Handler [Message]
-    download (Just fPath) = liftIO $ do
+    download :: Message -> Handler [Message]
+    download (Message encFPath ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fPath = myDecryptAES (aesPad seshKey) (encFPath)
       warnLog $ "Attempting to download file: [" ++ fPath ++ "] from db."
       withMongoDbConnection $ do
         docs <- find (select ["name" =: fPath] "FILE_RECORD") >>= drainCursor
-        return $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) docs
-
-    download Nothing = liftIO $ do
-      warnLog $ "No file specified to download."
-      return $ ([] :: [Message])
+        let file = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Message) docs
+        case file of
+          ((Message name text):_) -> do
+            let encName = myEncryptAES (aesPad seshKey) (name)
+                encText = myEncryptAES (aesPad seshKey) (text)
+            return [(Message encName encText)]
+          otherwise -> return ([] :: [Message])
 
     -- update primary, propagate change to replicas
-    upload :: Message -> Handler Bool
-    upload myFile@(Message fPath _) = liftIO $ do
+    upload :: Message3 -> Handler Bool
+    upload (Message3 encFPath encText ticket) = liftIO $ do
+      let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
+      let fPath = myDecryptAES (aesPad seshKey) (encFPath)
+          contents = myDecryptAES (aesPad seshKey) (encText)
+      let myFile = (Message fPath contents)
       warnLog $ "Uploading file to db: [" ++ fPath ++ "] and propagating replicas"
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       -- propagate change

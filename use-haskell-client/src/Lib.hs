@@ -26,6 +26,7 @@ import           System.Console.ANSI
 import           System.Environment
 import           UseHaskellAPI
 import           UseHaskellAPIClient
+import           UseHaskellAPITypes
 import           RSAhelpers
 import           Data.Text (pack, unpack)
 import           Database.MongoDB
@@ -138,176 +139,201 @@ doLogIn name pass host port = do
 -- | Lists file servers acting as directories to the client.
 doLsDir :: Maybe String -> Maybe String -> IO ()
 doLsDir h p = do
- doCall lsDir h (Just (show dirPort))
+  myDetails <- authenticateUser
+  case myDetails of
+    (Just (Details _ _ mySesh myTicket _)) -> do
+      getDirs <- myDoCall (lsDir (StrWrap myTicket)) h (Just (show dirPort))
+      case getDirs of
+        Left err -> putStrLn $ "error listing directories: " ++ (show err)
+        Right (ResponseData encDirs) -> putStrLn $ myDecryptAES (aesPad mySesh) encDirs
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | Lists contents of a particular directory.
 doLsFile :: String -> Maybe String -> Maybe String -> IO ()
 doLsFile dirName h p = do
-  getFiles <- myDoCall (lsFile $ Just dirName) h (Just (show dirPort))
-  case getFiles of
-    Left err -> do
-      putStrLn "error listing files..."
-    Right ((FsContents dir files):_) -> do
-      case files of
-        [] -> do putStrLn "directory empty..."
-        [x] -> do putStrLn $ "Files: " ++ x
-        xs -> do putStrLn $ "Files: " ++ (DL.intercalate "\n " xs)
+  myDetails <- authenticateUser
+  case myDetails of
+    (Just (Details _ _ mySesh myTicket _)) -> do
+      let encDir = myEncryptAES (aesPad mySesh) dirName
+      getFiles <- myDoCall (lsFile $ Message encDir myTicket) h (Just (show dirPort))
+      case getFiles of
+        Left err -> putStrLn $ "error listing files: " ++ (show err)
+        Right ((FsContents _ files):_) -> do
+          case files of
+            [] -> do putStrLn "directory empty..."
+            [x] -> do putStrLn $ "Files: " ++ (myDecryptAES (aesPad mySesh) x)
+            xs -> do putStrLn $ "Files: " ++ (DL.intercalate "\n " $ DL.map (myDecryptAES (aesPad mySesh)) xs)
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | File download, client asks directory server for directory / file communication
---  details, client then uses these details to request the file.
+--  details, client then uses these details to request the file. Load balancing is employed
+--  to reduce stress on the file server by directing these queries to replicas.
 doFileQuery :: String -> String -> Maybe String -> Maybe String -> IO ()
 doFileQuery fileName dirName h p = do
-  getRef <- myDoCall (fileQuery $ Message fileName dirName) h (Just (show dirPort))
-  case getRef of
-    Left err -> do
-      putStrLn $ "error [" ++ (show err) ++ "] querying file..."
-    Right response -> do
-      case response of
-        ((SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
-          putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
-          checkTimeStamp <- notCached myTime fPath
-          case checkTimeStamp of
-            True -> do
-              getFile <- myDoCall (download $ Just fID) (Just fsIP) (Just fsPort)
-              case getFile of
-                Left err -> do
-                  putStrLn "error retrieving file..."
-                Right ((Message file_path text):rest) -> do
-                  -- cache file
-                  let cacheRef = (FileRef fPath dirName fID myTime)
-                  withClientMongoDbConnection $ upsert (select ["fp" =: fPath] "CLIENT_CACHE") $ toBSON cacheRef
-                  writeFile fileName text
-            otherwise -> putStrLn $ "Using cached: " ++ dirName ++ "/" ++ fileName
-        [] -> do
-          putStrLn (fileName ++ " does not exist in " ++ dirName)
+  myDetails <- authenticateUser
+  case myDetails of
+    (Just (Details _ _ mySesh myTicket _)) -> do
+      let encFileName = myEncryptAES (aesPad mySesh) fileName
+          encDir = myEncryptAES (aesPad mySesh) dirName
+      getRef <- myDoCall (fileQuery $ Message3 encFileName encDir myTicket) h (Just (show dirPort))
+      case getRef of
+        Left err -> do
+          putStrLn $ "error [" ++ (show err) ++ "] querying file..."
+        Right response -> do
+          case response of
+            ((SendFileRef encFPath _ encFID encTime encIP encPort):_) -> do
+              let fPath = myDecryptAES (aesPad mySesh) (encFPath)
+                  fID = myDecryptAES (aesPad mySesh) (encFID)
+                  myTime = myDecryptAES (aesPad mySesh) (encTime)
+                  fsIP = myDecryptAES (aesPad mySesh) (encIP)
+                  fsPort = myDecryptAES (aesPad mySesh) (encPort)
+              putStrLn ("ID: " ++ fID ++ "\nIP: " ++ fsIP ++ "\nPort: " ++ fsPort)
+              checkTimeStamp <- notCached myTime fPath
+              case checkTimeStamp of
+                True -> do
+                  getFile <- myDoCall (download $ Message encFID myTicket) (Just fsIP) (Just fsPort)
+                  case getFile of
+                    Left err -> do
+                      putStrLn "error retrieving file..."
+                    Right ((Message _ encText):_) -> do
+                      let cacheRef = (FileRef fPath dirName fID myTime) -- cache file
+                          text = myDecryptAES (aesPad mySesh) (encText)
+                      withClientMongoDbConnection $ upsert (select ["fp" =: fPath] "CLIENT_CACHE") $ toBSON cacheRef
+                      writeFile fileName text
+                otherwise -> putStrLn $ "Using cached: " ++ dirName ++ "/" ++ fileName
+            [] -> do
+              putStrLn (fileName ++ " does not exist in " ++ dirName)
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | File upload, client asks directory server for directory / file communication
 --  details, client then uses these details to push the file, provided the client can aquire the lock.
 doMapFile :: String -> String -> Maybe String -> Maybe String -> IO ()
 doMapFile fileName dirName h p = do
   let filePath = (dirName ++ fileName)
-  myDetails <- getDetails -- get user details
+  myDetails <- authenticateUser
   case myDetails of
-    ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
-      checkSession <- validSession myExpiryDate -- check if session expired
-      case checkSession of
-        True -> do
-          let encFp = myEncryptAES (aesPad mySesh) (filePath)
-              encName = myEncryptAES (aesPad mySesh) (myName)
-          tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) h (Just (show lockPort))
-          case tryGetLock of -- try to lock file for writing
-            Right True -> do
-              -- check if transaction in progress
-              let owner = "clientTransaction" :: String
-              findTrans <- withClientMongoDbConnection $ find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-              let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-              case myTrans of
-                ((CurrentTrans _ tID):_) -> do
-                  transactionLock tID filePath -- keep track of files locked for this transaction
-                  getMapping <- myDoCall (dirShadowing $ Message3 tID fileName dirName) h (Just (show dirPort))
-                  case getMapping of
-                    Left err -> do
-                      putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
-                    Right response -> do
-                      case response of
-                        [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
-                        (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
-                          contents <- readFile fileName
-                          putStrLn "Pushing modification to transaction server..."
-                          let update = (Modification ref contents)
-                          let fileT = (FileTransaction tID update)
-                          doCall (tUpload fileT) h (Just (show transPort))
-                otherwise -> do
-                  getMapping <- myDoCall (mapFile $ Message fileName dirName) h (Just (show dirPort))
-                  case getMapping of
-                    Left err -> do
-                      putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
-                    Right response -> do
-                      case response of
-                        [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
-                        (ref@(SendFileRef fPath _ fID myTime fsIP fsPort):_) -> do
-                          contents <- readFile fileName
-                          putStrLn "Uploading file to file server..."
-                          doCall (upload $  Message fID contents) (Just fsIP) (Just fsPort)
-                          -- unlocking only required here if upload is not part of transaction
-                          doCall (unlock $ Message3 encFp encName myTicket) h (Just (show lockPort))
-            otherwise -> putStrLn $ "DENIED: " ++ dirName ++ "/" ++ fileName ++ " is locked, try again later..."
-        otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
-    otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
+    (Just (Details _ myName mySesh myTicket _)) -> do
+      let encFp = myEncryptAES (aesPad mySesh) (filePath)
+          encName = myEncryptAES (aesPad mySesh) (myName)
+          encFName = myEncryptAES (aesPad mySesh) (fileName)
+          encDirName = myEncryptAES (aesPad mySesh) (dirName)
+      tryGetLock <- myDoCall (lock $ Message3 encFp encName myTicket) h (Just (show lockPort))
+      case tryGetLock of -- try to lock file for writing
+        Right True -> do
+          -- check if transaction in progress
+          let owner = "clientTransaction" :: String
+          findTrans <- withClientMongoDbConnection $ find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+          let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+          case myTrans of
+            ((CurrentTrans _ tID):_) -> do
+              transactionLock tID filePath -- keep track of files locked for this transaction
+              let encTID = myEncryptAES (aesPad mySesh) (tID)
+              getMapping <- myDoCall (dirShadowing $ Message4 encTID encFName encDirName myTicket) h (Just (show dirPort))
+              case getMapping of
+                Left err -> do
+                  putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+                Right response -> do
+                  case response of
+                    [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+                    (ref:_) -> do
+                      contents <- readFile fileName
+                      let encText = myEncryptAES (aesPad mySesh) (contents)
+                      putStrLn "Pushing modification to transaction server..."
+                      let update = (Modification ref encText)
+                      let fileT = (FileTransaction encTID update myTicket)
+                      doCall (tUpload fileT) h (Just (show transPort))
+            otherwise -> do
+              getMapping <- myDoCall (mapFile $ Message3 encFName encDirName myTicket) h (Just (show dirPort))
+              case getMapping of
+                Left err -> do
+                  putStrLn $ "error [" ++ (show err) ++ "] mapping file..."
+                Right response -> do
+                  case response of
+                    [] -> putStrLn $ "No such filepath: " ++ dirName ++ "/" ++ fileName
+                    (ref@(SendFileRef _ _ encFID _ encIP encPort):_) -> do
+                      let fsIP = myDecryptAES (aesPad mySesh) (encIP)
+                          fsPort = myDecryptAES (aesPad mySesh) (encPort)
+                      contents <- readFile fileName
+                      let encText = myEncryptAES (aesPad mySesh) (contents)
+                      putStrLn "Uploading file to file server..."
+                      doCall (upload $ Message3 encFID encText myTicket) (Just fsIP) (Just fsPort)
+                      -- unlocking only required here if upload is not part of transaction
+                      doCall (unlock $ Message3 encFp encName myTicket) h (Just (show lockPort))
+        otherwise -> putStrLn $ "DENIED: " ++ dirName ++ "/" ++ fileName ++ " is locked, try again later..."
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | Client retrieves a transaction ID from the transaction service
 --  all subsequent uploads will be part of this transaction until client commits/aborts.
 doBeginTrans :: Maybe String -> Maybe String -> IO ()
 doBeginTrans h p = do
-  getTransID <- myDoCall beginTransaction h (Just (show transPort))
-  let owner = "clientTransaction" :: String
-  case getTransID of
-    Left err -> do
-      putStrLn "error obtaining transaction ID..."
-    Right (ResponseData tID) -> do
-      putStrLn ("New transaction ID: " ++ tID)
-      -- store tID in client db
-      withClientMongoDbConnection $ do
-        findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-        case myTrans of
-          ((CurrentTrans _ oldTID):_) -> liftIO $ do
-            putStrLn "Aborting current transaction and starting new one..."
-            -- tell transaction server to abort previous transaction
-            doCall (abort oldTID) h (Just (show transPort))
-            -- set transaction boolean to true ?? or just db entry existence as check...
-            withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
-          [] -> liftIO $ do
-            putStrLn "starting new transaction..."
-            withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
+  myDetails <- authenticateUser
+  case myDetails of
+    (Just (Details _ myName mySesh myTicket _)) -> do
+      getTransID <- myDoCall (beginTransaction (StrWrap myTicket)) h (Just (show transPort))
+      let owner = "clientTransaction" :: String
+      case getTransID of
+        Left err -> do
+          putStrLn "error obtaining transaction ID..."
+        Right (ResponseData encTID) -> do
+          let tID = myDecryptAES (aesPad mySesh) (encTID)
+          putStrLn ("New transaction ID: " ++ tID)
+          -- store tID in client db
+          withClientMongoDbConnection $ do
+            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+            case myTrans of
+              ((CurrentTrans _ oldTID):_) -> liftIO $ do
+                putStrLn "Aborting current transaction and starting new one..."
+                let encOldTID = myEncryptAES (aesPad mySesh) oldTID
+                doCall (abort (Message encOldTID myTicket)) h (Just (show transPort)) -- tell transaction server to abort previous transaction
+                transactionUnlock oldTID myName mySesh myTicket -- unlock all files in transaction
+                withClientMongoDbConnection $ repsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
+              [] -> liftIO $ do
+                putStrLn "starting new transaction..."
+                withClientMongoDbConnection $ upsert (select ["tOwner" =: owner] "MY_TID") $ toBSON (CurrentTrans owner tID)
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | Fetch tID from client db, talk to transaction server to proceed with transaction, remove ID from db.
 doCommit :: Maybe String -> Maybe String -> IO ()
 doCommit h p = do
-  myDetails <- getDetails
+  myDetails <- authenticateUser
   case myDetails of
-    ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
-      checkSession <- validSession myExpiryDate
-      case checkSession of
-        True -> do
-          let owner = "clientTransaction" :: String
-          withClientMongoDbConnection $ do
-            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-            case myTrans of
-              ((CurrentTrans _ tID):_) -> liftIO $ do
-                putStrLn "Committing current transaction..."
-                doCall (commit tID) h (Just (show transPort))
-                withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
-                transactionUnlock tID myName mySesh myTicket
-              [] -> liftIO $ do
-                putStrLn "No active transactions..."
-        otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
-    otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
+    (Just (Details _ myName mySesh myTicket _)) -> do
+      let owner = "clientTransaction" :: String
+      withClientMongoDbConnection $ do
+        findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+        case myTrans of
+          ((CurrentTrans _ tID):_) -> liftIO $ do
+            putStrLn "Committing current transaction..."
+            let encTID = myEncryptAES (aesPad mySesh) (tID)
+            doCall (commit (Message encTID myTicket)) h (Just (show transPort))
+            withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
+            transactionUnlock tID myName mySesh myTicket -- unlock all files in transaction
+          [] -> liftIO $ do
+            putStrLn "No active transactions..."
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | Fetch tID from client db, talk to transaction server to abort transaction, remove ID from db.
 doAbort :: Maybe String -> Maybe String -> IO ()
 doAbort h p = do
-  myDetails <- getDetails
+  myDetails <- authenticateUser
   case myDetails of
-    ((Details _ myName mySesh myTicket myExpiryDate):_) -> do
-      checkSession <- validSession myExpiryDate
-      case checkSession of
-        True -> do
-          let owner = "clientTransaction" :: String
-          withClientMongoDbConnection $ do
-            findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
-            let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
-            case myTrans of
-              ((CurrentTrans _ tID):_) -> liftIO $ do
-                putStrLn "Aborting current transaction..."
-                doCall (abort tID) h (Just (show transPort))
-                withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
-                transactionUnlock tID myName mySesh myTicket
-              [] -> liftIO $ do
-                putStrLn "No active transactions..."
-        otherwise -> putStrLn $ "DENIED: Session expired, relog to continue..."
-    otherwise -> putStrLn $ "DENIED: Must create an account and log in..."
+    (Just (Details _ myName mySesh myTicket _)) -> do
+      let owner = "clientTransaction" :: String
+      withClientMongoDbConnection $ do
+        findTrans <- find (select ["tOwner" =: owner] "MY_TID") >>= drainCursor
+        let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe CurrentTrans) findTrans
+        case myTrans of
+          ((CurrentTrans _ tID):_) -> liftIO $ do
+            putStrLn "Aborting current transaction..."
+            let encTID = myEncryptAES (aesPad mySesh) (tID)
+            doCall (abort (Message encTID myTicket)) h (Just (show transPort))
+            withClientMongoDbConnection $ delete (select ["tOwner" =: owner] "MY_TID")
+            transactionUnlock tID myName mySesh myTicket -- unlock all files in transaction
+          [] -> liftIO $ do
+            putStrLn "No active transactions..."
+    otherwise -> putStrLn $ "DENIED: Invalid session, please log in."
 
 -- | The options handling
 
@@ -345,13 +371,13 @@ opts = do
                                             <$> argument str (metavar "fDir")
                                             <*> serverIpOption
                                             <*> serverPortOption) "List files contained in a directory." )
-                       <> command "file-query"
+                       <> command "download"
                                    (withInfo ( doFileQuery
                                             <$> argument str (metavar "fPath")
                                             <*> argument str (metavar "fDir")
                                             <*> serverIpOption
                                             <*> serverPortOption) "Init download communication." )
-                       <> command "map-file"
+                       <> command "upload"
                                    (withInfo ( doMapFile
                                             <$> argument str (metavar "fPath")
                                             <*> argument str (metavar "fDir")
@@ -426,6 +452,23 @@ validSession :: String -> IO Bool
 validSession expiryDate = do
   time <- getCurrentTime
   return ((cmpTime expiryDate (show time)) > 0.0)
+
+-- | Checks if the user has been authenticated, and that their session hasn't expired.
+-- Returns user's credentials for further communication with services.
+authenticateUser :: IO (Maybe Details)
+authenticateUser = do
+  let key = "MyDetails" :: String
+  findDetails <- withClientMongoDbConnection $ find (select ["clientKey" =: key] "DETAILS_RECORD") >>= drainCursor
+  let myDetails = (catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Details) findDetails)
+  case myDetails of
+    (retVal@(Details _ myName mySesh myTicket myExpiryDate):_) -> do
+      -- check if session key has expired
+      time <- getCurrentTime
+      let notExpired = ((cmpTime myExpiryDate (show time)) > 0.0)
+      case notExpired of
+        True -> return (Just retVal)
+        otherwise -> return Nothing
+    otherwise -> return Nothing
 
 -- MongoDB client info
 withClientMongoDbConnection :: Action IO a -> IO a
