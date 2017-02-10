@@ -23,7 +23,7 @@ docker:
 image:
   container:
     name: trans-service
-    base: fpco/stack-run
+    base: docker-lorcan
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.

@@ -25,7 +25,7 @@ docker:
 image:
   container:
     name: use-haskell
-    base: fpco/stack-run
+    base: docker-lorcan
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
