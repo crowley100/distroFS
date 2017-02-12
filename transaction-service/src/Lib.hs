@@ -70,6 +70,7 @@ transService = beginTransaction
           :<|> readyCommit
           :<|> confirmCommit
   where
+    -- | Initiates a new transaction for the requesting client.
     beginTransaction :: StrWrap -> Handler ResponseData
     beginTransaction (StrWrap ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -96,6 +97,8 @@ transService = beginTransaction
             withMongoDbConnection $ repsert (select  ["transID" =: retID] "TRANSACTION_RECORD") $ toBSON (Transaction retID [] [])
             return $ ResponseData encTID
 
+    -- | File uploads from clients with a transaction in progress are directed here.
+    --  The uploads are stored temporarily on the transaction server until a commit/abort occurs.
     tUpload :: FileTransaction -> Handler Bool
     tUpload (FileTransaction encTID (Modification (SendFileRef encFP encFDir encFID encTime encIP encPort) encText) ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -121,12 +124,13 @@ transService = beginTransaction
           [] -> liftIO $ do
             return False
 
+    -- | Propagate changes associated with a particular transaction to the relevant
+    --  file server shadow records.
     commit :: Message -> Handler Bool
     commit (Message encTID ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
       let transID = myDecryptAES (aesPad seshKey) (encTID)
       warnLog $ "Client committing modifications in the transaction."
-      -- initiate phase 2: talk to file servers
       withMongoDbConnection $ do
         findTrans <- find (select ["transID" =: transID] "TRANSACTION_RECORD") >>= drainCursor
         let myTrans = catMaybes $ DL.map (\ b -> fromBSON b :: Maybe Transaction) findTrans
@@ -136,12 +140,12 @@ transService = beginTransaction
             return True
           [] -> return False
 
+    -- | On request from the client, delete all temporary records for a given transaction.
     abort :: Message -> Handler Bool
     abort (Message encTID ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
       let transID = myDecryptAES (aesPad seshKey) (encTID)
       warnLog $ "Client aborting modifications in the transaction."
-      -- tell directory server
       toDir <- servDoCall (dirCommitShadow (Message transID "ticket")) dirPort
       case toDir of
         Left _ -> warnLog $ "service communication failure. (transaction -> dir server)"
@@ -149,6 +153,9 @@ transService = beginTransaction
       withMongoDbConnection $ delete (select  ["transID" =: transID] "TRANSACTION_RECORD")
       return True
 
+    -- | Handler for file servers indicating they are ready to commit shadow records
+    --  to their real db. When all file servers indicate they can commit a particular
+    --  transaction, a commit message is broadcast to green light the transfer.
     readyCommit :: Message -> Handler Bool
     readyCommit (Message tID fPath) = liftIO $ do
       warnLog (tID ++ ": [" ++ fPath ++ "] ready to be committed.")
@@ -164,7 +171,7 @@ transService = beginTransaction
                 -- broadcast to file servers: commit your shadow databases for tID
                 broadcastCommit tID changes
                 -- tell directory server to commit its shadow records too
-                toDir <- servDoCall (dirCommitShadow (Message tID "ticket")) dirPort
+                toDir <- servDoCall (dirCommitShadow (Message tID "")) dirPort
                 case toDir of
                   Left _ -> warnLog $ "service communication failure. (transaction -> dir server)"
                   Right _ -> warnLog $ "service communication success. (transaction -> dir server)"
@@ -177,32 +184,41 @@ transService = beginTransaction
           [] -> liftIO $ do
             return False
 
-    -- functionality to be determined...
+    -- | File servers can confirm to the transaction service that they have successfully
+    --  commited the file.
     confirmCommit :: Message -> Handler Bool
     confirmCommit (Message tID fPath) = liftIO $ do
       warnLog (tID ++ ": [" ++ fPath ++ "] has been committed.")
       return True
 
--- helper functions
+-- helper functions...
+-- | Updates list of file servers that are ready to commit a particular transaction.
 readyUp :: [String] -> [String] -> String -> [String]
 readyUp (h:t) result fp | (h == fp) = (result ++ t)
                         | otherwise = readyUp t (result ++ [h]) fp
 readyUp [] result _ = result
 
+-- | Helper for propagating transaction to the shadow records of file servers.
 pushShadows :: String -> [Modification] -> IO ()
 pushShadows _ [] = warnLog $ "No more changes to push."
 pushShadows tID ((Modification (SendFileRef _ _ fID _ ip port) fContents):rest) = do
-  let newShadow = (Shadow tID (Message fID fContents))
+  let encTID = myEncryptAES (aesPad sharedSeed) (tID)
+      encFID = myEncryptAES (aesPad sharedSeed) (fID)
+      encContents = myEncryptAES (aesPad sharedSeed) (fContents)
+  let newShadow = (Shadow encTID (Message encFID encContents))
   toFS <- servDoCall (updateShadowDB newShadow) (read port)
   case toFS of
     Left _ -> warnLog $ "service communication failure. (transaction -> file server)"
     Right _ -> warnLog $ "serice communication success. (transaction -> file server)"
   pushShadows tID rest
 
+-- | Helper to broadcast message to file servers to copy shadow record for a Transaction
+--  to their real db.
 broadcastCommit :: String -> [Modification] -> IO ()
 broadcastCommit _ [] = warnLog $ "Finished broadcasting commits!"
 broadcastCommit tID ((Modification (SendFileRef _ _ _ _ ip port) fContents):rest) = do
-  toFS <- servDoCall (pushTransaction tID) (read port)
+  let encTID = myEncryptAES (aesPad sharedSeed) (tID)
+  toFS <- servDoCall (pushTransaction encTID) (read port)
   case toFS of
     Left _ -> warnLog $ "service communication failure. (transaction -> file server)"
     Right _ -> warnLog $ "service communication success. (transaction -> file server)"

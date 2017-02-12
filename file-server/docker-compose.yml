@@ -43,3 +43,49 @@ database2:
   image: mongo:3.0.2
   ports:
     - "27031:27017"
+
+file-server2:
+  image: file-server
+  environment:
+    # The start of active environment variables. Set as needed.
+    - FS_NAME=fs2
+    - FS_PORT=8083
+    # - FS_IP=10.6.80.162
+    - MONGODB_IP=database3
+    # - MONGODB_PORT
+    # - MONGODB_DATABASE=USE_HASKELL_DB
+    - LOG_LEVEL=DEBUG
+    # - https_proxy=http://www-proxy.scss.tcd.ie:8080
+    # - http_proxy=http://www-proxy.scss.tcd.ie:8080
+  command: /usr/local/bin/file-server-exe
+  ports:
+    - "8083:8083"
+  links:
+    - database3
+database3:
+  image: mongo:3.0.2
+  ports:
+    - "27032:27017"
+
+file-server-rep2:
+  image: file-server
+  environment:
+    # The start of active environment variables. Set as needed.
+    - FS_NAME=fs2
+    - FS_PORT=8084
+    # - FS_IP=10.6.80.162
+    - MONGODB_IP=database4
+    # - MONGODB_PORT
+    # - MONGODB_DATABASE=USE_HASKELL_DB
+    - LOG_LEVEL=DEBUG
+    # - https_proxy=http://www-proxy.scss.tcd.ie:8080
+    # - http_proxy=http://www-proxy.scss.tcd.ie:8080
+  command: /usr/local/bin/file-server-exe
+  ports:
+    - "8084:8084"
+  links:
+    - database4
+database4:
+  image: mongo:3.0.2
+  ports:
+    - "27033:27017"

@@ -2,12 +2,12 @@ Configuring trans-service-0.1.0.0...
 Preprocessing library trans-service-0.1.0.0...
 [1 of 1] Compiling Lib              ( src/Lib.hs, .stack-work/dist/x86_64-linux-dkda49f7ca9b244180d3cfb1987cbc9743/Cabal-1.24.0.0/build/Lib.o )
 
-src/Lib.hs:88:37: warning: [-Wdeprecations]
+src/Lib.hs:89:37: warning: [-Wdeprecations]
     In the use of ‘repsert’
     (imported from Database.MongoDB, but defined in Database.MongoDB.Query):
     Deprecated: "use upsert instead"
 
-src/Lib.hs:96:37: warning: [-Wdeprecations]
+src/Lib.hs:97:37: warning: [-Wdeprecations]
     In the use of ‘repsert’
     (imported from Database.MongoDB, but defined in Database.MongoDB.Query):
     Deprecated: "use upsert instead"

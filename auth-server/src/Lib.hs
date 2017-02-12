@@ -91,7 +91,7 @@ authServer = signUp
             return $ ResponseData $ "Success"
           Just _ -> return $ ResponseData $ "Account already exists."
 
-    -- | Clients must login to authenticate communication with the rest of the system.
+    -- | Clients must log in to authenticate communication with the rest of the system.
     logIn :: Login -> Handler [ResponseData]
     logIn val@(Login key pass) = liftIO $ do
       passText <- decryptPass pass -- decrypt client pass with private key

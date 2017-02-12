@@ -67,7 +67,7 @@ lockService = lock
          :<|> unlock
          :<|> locked
   where
-    -- attempts to lock a file for a specified user
+    -- | Attempts to lock a file for a specified user.
     lock :: Message3 -> Handler Bool
     lock (Message3 encPath encName ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -88,7 +88,7 @@ lockService = lock
     lock _ = do
       return False
 
-    -- attempts to unlock a file for a specified user
+    -- | Attempts to unlock a file for a specified user.
     unlock :: Message3 -> Handler Bool
     unlock (Message3 encPath encName ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -112,7 +112,7 @@ lockService = lock
     unlock _ = do
       return False
 
-    -- checks if lock is available
+    -- | Checks if lock is available.
     locked :: Message -> Handler Bool -- same as searchMessage
     locked (Message encPath ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)

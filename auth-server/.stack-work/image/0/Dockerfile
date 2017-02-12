@@ -1,2 +1,2 @@
-FROM fpco/stack-run
+FROM docker-lorcan
 ADD ./ /

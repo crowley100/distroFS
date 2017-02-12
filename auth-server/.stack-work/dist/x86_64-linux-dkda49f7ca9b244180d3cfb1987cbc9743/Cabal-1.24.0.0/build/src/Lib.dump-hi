@@ -1,9 +1,9 @@
 
 ==================== FINAL INTERFACE ====================
-2017-02-10 19:36:31.259216134 UTC
+2017-02-12 22:04:33.087386166 UTC
 
 interface auth-server-0.1.0.0-2RxAqzru5Zz4c6xsLQunhQ:Lib 8001
-  interface hash: 350448793e86e0cd8b9fd52d6230b240
+  interface hash: c538eda982cf763e58da5c8d99d3d7f2
   ABI hash: d5b16abb53fb7f33b3df8ece4ec5fd4a
   export-list hash: a4efdc8240836461f8673e6338881e7b
   orphan hash: ef35c738d69e0899fee5f82169b032e2
@@ -272,7 +272,7 @@ import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Clock.UTCDiff b148dd206265869623
 import  -/  time-1.6.0.1@time-1.6.0.1:Data.Time.Format b6d4cc5df3f9159b1156baa52a254cf6
 import  -/  transformers-0.5.2.0@transformers-0.5.2.0:Control.Monad.Trans.Except 71b1d86204f6908788cb5223e3c73193
 import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:RSAhelpers ea02951fd033d04acd0994294c66d5e1
-import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI cccadd76e997953fe21eb94381c477de
+import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPI 81c47dbe9fffff6a276c3dcd6800bdea
 import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPIServer f5b3ffa527c1b89f5cde2f65a5d7f64e
 import  -/  use-haskell-api-0.1.0.0@use-haskell-api-0.1.0.0-8J0ia58xvf8BuCyT0nyHlt:UseHaskellAPITypes 4b227e79d17976807609b08be222d224
 import  -/  wai-3.2.1.1@wai-3.2.1.1-f77bMYZGLQBAD3XJrvGiW:Network.Wai f10fb472d685284a8637bf34e58bc7f2

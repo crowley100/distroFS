@@ -63,17 +63,18 @@ type MyDirAPI = "lsDir"               :> ReqBody '[JSON] StrWrap :> Get '[JSON] 
 
 -- some helper functions...
 
+-- | Retrieve directory service's record of registered file servers.
 getDirInfo :: String -> IO [FsInfo]
 getDirInfo fDir = liftIO $ do
   findFS <- withMongoDbConnection $ find (select ["myName" =: fDir] "FS_INFO") >>= drainCursor
   return (DL.take 1 $ catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsInfo) findFS)
 
--- elecet a replica to server as new primary server
+-- | Elect a replica to server as the new primary server for that directory.
 primaryElection :: FsInfo -> FsInfo
 primaryElection (FsInfo dName _ (r:rs)) = (FsInfo dName (Just r) rs)
 primaryElection (FsInfo dName _ []) = (FsInfo dName Nothing []) -- all servers dead
 
--- check if any replicas aren't responding, remove those that aren't
+-- | Check if any replicas aren't responding, remove those that aren't.
 updateReplicaStatus :: [FsAttributes] -> [FsAttributes] -> IO [FsAttributes]
 updateReplicaStatus [] result = return result
 updateReplicaStatus (r@(FsAttributes ip port):rest) result = liftIO $ do
@@ -91,7 +92,7 @@ updateReplicaStatus (r@(FsAttributes ip port):rest) result = liftIO $ do
         otherwise -> updateReplicaStatus rest (result ++ [r])
     otherwise -> updateReplicaStatus rest result -- inconsitent state
 
--- Update server data structures to only contain responding servers
+-- Update server data structures to only contain responding servers.
 updateServerStatus :: String -> IO ()
 updateServerStatus fDir = liftIO $ do
   servers <- getDirInfo fDir
@@ -114,6 +115,7 @@ updateServerStatus fDir = liftIO $ do
         otherwise -> withMongoDbConnection $ upsert (select ["myName" =: fDir] "FS_INFO") $ toBSON newStatus-- inconsitent state
     otherwise -> warnLog $ "error: inconsistent db state"
 
+-- | Randomly distribute read requests among available replicas.
 loadBalance :: [FsAttributes] -> IO FsAttributes
 loadBalance [] = do
   return (FsAttributes "localhost" "8081")
@@ -122,13 +124,13 @@ loadBalance replicas = do
   index <- randomRIO (0, size)
   return (replicas !! index)
 
--- remove duplicate elements from a list
+-- | Remove duplicate elements from a list.
 removeDuplicates :: Eq a => [a] -> [a]
 removeDuplicates = foldl (\seen x -> if x `elem` seen
                                      then seen
                                      else seen ++ [x]) []
 
--- if the file is a new addition to the directory, add it to contents
+-- | If the file is a new addition to the directory, add it to contents.
 updateDirContents :: String -> String -> IO ()
 updateDirContents fp fDir = do
   let fName = DL.drop (DL.length fDir) fp
@@ -141,14 +143,14 @@ updateDirContents fp fDir = do
       withMongoDbConnection $ upsert (select  ["dirName" =: fDir] "CONTENTS_RECORD") $ toBSON newContents
     [] -> liftIO $ do warnLog $ "ERROR: inconsistent db record (CONTENTS_RECORD)"
 
--- push changes in shadow record to real db
+-- | Push changes in shadow record to real db.
 doTheCommit :: [FileRef] -> IO ()
 doTheCommit [] = putStrLn "Nothing left to push from shadow to real db..."
 doTheCommit (ref@(FileRef fp dir _ _):rest) = do
   withMongoDbConnection $ upsert (select ["fp" =: fp] "FILEREF_RECORD") $ toBSON ref
   updateDirContents fp dir
 
--- produce an encrypted list of registered directories
+-- | Produce an encrypted list of registered directories.
 listEncDirs :: String -> [FsContents] -> ResponseData
 listEncDirs seshKey [] = (ResponseData (myEncryptAES (aesPad seshKey) ("No registered directories...")))
 listEncDirs seshKey [dir] = (ResponseData (myEncryptAES (aesPad seshKey) (dirName dir)))
@@ -179,6 +181,7 @@ dirService = lsDir
         :<|> dirCommitShadow
         :<|> dirAbortShadow
   where
+    -- | Typical ls instruction, gives client view of the file system.
     lsDir :: StrWrap -> Handler ResponseData
     lsDir (StrWrap ticket) = liftIO $ do
       warnLog $ "Client listing directories"
@@ -186,6 +189,7 @@ dirService = lsDir
       findDirs <- withMongoDbConnection $ find (select [] "CONTENTS_RECORD") >>= drainCursor
       return $ listEncDirs seshKey (catMaybes $ DL.map (\ b -> fromBSON b :: Maybe FsContents) findDirs)
 
+    -- | Return list of file names in a particular directory.
     lsFile :: Message -> Handler [FsContents]
     lsFile (Message encDir ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -199,6 +203,9 @@ dirService = lsDir
           return [(FsContents encDir encFiles)]
         otherwise -> return ([] :: [FsContents])
 
+    -- | Key step in the file download process, returns to the client the mapping
+    --  from a given global file name, to the file ID understood by file servers
+    --  along with the ip and port of the file server containing that file.
     fileQuery :: Message3 -> Handler [SendFileRef]
     fileQuery query@(Message3 encFName encFDir ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -230,6 +237,9 @@ dirService = lsDir
                 return [(SendFileRef encFp encDir encFid encFts encIp encPort)]
           [] -> return ([] :: [SendFileRef]) -- file not found
 
+    -- | Key step in the file upload process. If updating an existing file, timestamps
+    --  are updated and mapping is returned to client, otherwise a new mapping is created
+    --  and subsequently returned to the client.
     mapFile :: Message3 -> Handler [SendFileRef]
     mapFile val@(Message3 encFName encFDir ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -286,9 +296,11 @@ dirService = lsDir
                   withMongoDbConnection $ upsert (select  ["fp" =: filepath] "FILEREF_RECORD") $ toBSON result
                   return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
 
-    -- confirm fs is still alive
+    -- | Confirmation that a particular file server is still responding.
     ping :: Message -> Handler Bool
-    ping msg@(Message ip port) = liftIO $ do
+    ping msg@(Message encIP encPort) = liftIO $ do
+      let ip = myDecryptAES (aesPad sharedSeed) (encIP)
+          port = myDecryptAES (aesPad sharedSeed) (encPort)
       currentTime <- getCurrentTime
       let myTime = (show currentTime)
       let fsID = (ip ++ port)
@@ -296,9 +308,12 @@ dirService = lsDir
       withMongoDbConnection $ upsert (select  ["name" =: fsID] "FS_STATUS") $ toBSON updatedStatus
       return True
 
-    -- register a file server
+    -- | Register the contacting file server in the directory service.
     registerFS :: Message3 -> Handler Bool
-    registerFS msg3@(Message3 dirName fsIP fsPort) = liftIO $ do
+    registerFS msg3@(Message3 encDir encIP encPort) = liftIO $ do
+      let dirName = myDecryptAES (aesPad sharedSeed) (encDir)
+          fsIP = myDecryptAES (aesPad sharedSeed) (encIP)
+          fsPort = myDecryptAES (aesPad sharedSeed) (encPort)
       warnLog $ "Registering file server associated with [" ++ dirName ++ "]"
       fs <- getDirInfo dirName
       case fs of
@@ -322,6 +337,7 @@ dirService = lsDir
               withMongoDbConnection $ upsert (select ["myName" =: dirName] "FS_INFO") $ toBSON newEntry
               return True
 
+    -- | On request from primary servers, provide contact information associated with their replicas.
     getPropagationInfo :: Message -> Handler [FsAttributes]
     getPropagationInfo (Message directory ticket) = liftIO $ do
       warnLog $ "RETURNING PROPAGATION INFO..."
@@ -330,6 +346,7 @@ dirService = lsDir
         [] -> return ([] :: [FsAttributes])
         ((FsInfo _ _ replicas):_) -> return replicas
 
+    -- | If upload is part of a transaction, follow the intermediary step of updating shadow records.
     dirShadowing :: Message4 -> Handler [SendFileRef]
     dirShadowing (Message4 encTID encFName encFDir ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -405,7 +422,7 @@ dirService = lsDir
                   withMongoDbConnection $ upsert (select  ["directory" =: fDir] "ID_RECORD") $ toBSON value
                   return [(SendFileRef encFP encFDir encFID encTime encIP encPort)]
 
-    -- maybe dont use ticket below as it is server-server comms
+    -- | Propagate shadow record changes for a given transaction to the real db.
     dirCommitShadow :: Message -> Handler Bool
     dirCommitShadow (Message tID ticket) = liftIO $ do
       findShadows <- withMongoDbConnection $ find (select ["dTID" =: tID] "SHADOW_REFS") >>= drainCursor
@@ -417,6 +434,7 @@ dirService = lsDir
           return True
         otherwise -> return False
 
+    -- | Remove shadow record contents for a given transaction.
     dirAbortShadow :: Message -> Handler Bool
     dirAbortShadow (Message tID ticket) = liftIO $ do
       withMongoDbConnection $ delete (select  ["dTID" =: tID] "SHADOW_REFS")

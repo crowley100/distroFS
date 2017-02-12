@@ -75,7 +75,8 @@ fileService = download
          :<|> pushTransaction
          :<|> replicateFile
   where
-    -- using Message type to send (fPath, fConents)
+    -- | Uses mapping from directory service, forwarded through the client,
+    --  to return requested file contents.
     download :: Message -> Handler [Message]
     download (Message encFPath ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -91,7 +92,8 @@ fileService = download
             return [(Message encName encText)]
           otherwise -> return ([] :: [Message])
 
-    -- update primary, propagate change to replicas
+    -- | Stores file contents at mapping from directory service, forwarded through the client.
+    --  Then communicates with directory service in order to propagate the change to replica servers.
     upload :: Message3 -> Handler Bool
     upload (Message3 encFPath encText ticket) = liftIO $ do
       let seshKey = myDecryptAES (aesPad sharedSeed) (ticket)
@@ -107,11 +109,16 @@ fileService = download
       case propagate of
         Left e -> warnLog $ "propagation failure: " ++ (show e)
         Right replicas -> broadcast myFile replicas
-
       return True
 
+    -- | Enters a file change into an intermediary shadow record associated with
+    --  a particular transaction.
     updateShadowDB :: Shadow -> Handler Bool
-    updateShadowDB (Shadow tID file@(Message fId fContents)) = liftIO $ do
+    updateShadowDB (Shadow encTID file@(Message encFID encContents)) = liftIO $ do
+      let tID = myDecryptAES (aesPad sharedSeed) (encTID)
+          fId = myDecryptAES (aesPad sharedSeed) (encFID)
+          fContents = myDecryptAES (aesPad sharedSeed) (encContents)
+      let file = (Message fId fContents)
       warnLog $ "Entering [" ++ fId ++ "] to ready to commit state."
       myName <- fsName
       let retVal = (Message tID (myName ++ fId))
@@ -134,9 +141,11 @@ fileService = download
         Right False -> warnLog $ "I got a false response"
       return True
 
-    -- create a new Message type for each file change
+    -- | Move changes associated with a given transaction from the shadow record
+    --  to the real db. Propagate these changes to replica file servers.
     pushTransaction :: String -> Handler Bool
-    pushTransaction tID = liftIO $ do
+    pushTransaction encTID = liftIO $ do
+      let tID = myDecryptAES (aesPad sharedSeed) (encTID)
       warnLog $ "Moving shadow entries for [" ++ tID ++ "] to storage."
       myDir <- fsName -- get env vairable
       propagate <- servDoCall (getPropagationInfo (Message myDir "ticket")) dirPort
@@ -152,16 +161,19 @@ fileService = download
             otherwise -> putStrLn "nothing left to commit..."
       return True
 
-    -- receive update from primary file server
+    -- | Receive update from primary file server.
     replicateFile :: Message -> Handler Bool
-    replicateFile myFile@(Message fPath _) = liftIO $ do
+    replicateFile (Message encPath encContents) = liftIO $ do
+      let fPath = myDecryptAES (aesPad sharedSeed) (encPath)
+          fContents = myDecryptAES (aesPad sharedSeed) (encContents)
+      let myFile = (Message fPath fContents)
       warnLog $ "Uploading file to db: [" ++ fPath ++ "]."
       putStrLn $ "REPLICATING A FILE HERE!!!"
       withMongoDbConnection $ upsert (select ["name" =: fPath] "FILE_RECORD") $ toBSON myFile
       return True
 
--- helper functions
--- pushes changes for a particular transaction
+-- helper functions...
+-- | Commits a list of files associated with a particular transaction to real db.
 myCommit :: [Message] -> [FsAttributes] -> IO ()
 myCommit [] _ = do
   warnLog $ "Nothing left to commit."
@@ -170,20 +182,28 @@ myCommit (entry@(Message fPath contents):rest) replicas = do
   broadcast entry replicas -- update replicas
   myCommit rest replicas
 
--- keeps the directory server informed about the file server's status
+-- | Keeps the directory server informed about the file server's status.
 stillAlive :: Int -> String -> IO ()
 stillAlive wait port = do
   warnLog $ "Pinging directory server."
-  servDoCall (ping (Message "localhost" port)) dirPort
+  h <- defaultHost
+  let encHost = myEncryptAES (aesPad sharedSeed) h
+      encPort = myEncryptAES (aesPad sharedSeed) port
+  servDoCall (ping (Message encHost encPort)) dirPort
   threadDelay (wait * 1000000)
   stillAlive wait port -- recurse
 
--- passes file server's attributes to the directory server
+-- | Passes file server's attributes to the directory server for registration.
 iExist :: String -> IO ()
 iExist port = do
   warnLog "Greeting directory server."
   myName <- fsName
-  resp <- servDoCall (registerFS (Message3 myName "localhost" port)) dirPort
+  h <- defaultHost
+  warnLog $ "This is my ip: " ++ h
+  let encName = myEncryptAES (aesPad sharedSeed) myName
+      encHost = myEncryptAES (aesPad sharedSeed) h
+      encPort = myEncryptAES (aesPad sharedSeed) port
+  resp <- servDoCall (registerFS (Message3 encName encHost encPort)) dirPort
   case resp of
     Left _ -> do
       warnLog $ "According to the directory server, I don't exist..."
@@ -195,10 +215,13 @@ iExist port = do
         otherwise -> do
           warnLog $ "I'm only a replica..."
 
--- broadcast changes to all replicas
+-- | Broadcast changes to replica file servers.
 broadcast :: Message -> [FsAttributes] -> IO ()
 broadcast _ [] = warnLog $ "no replicas left for propagation"
-broadcast aFile ((FsAttributes _ port):rs) = do
+broadcast (Message path contents) ((FsAttributes _ port):rs) = do
+  let encPath = myEncryptAES (aesPad sharedSeed) (path)
+      encContents = myEncryptAES (aesPad sharedSeed) (contents)
+  let aFile = (Message encPath encContents)
   putStrLn $ "BROADCASTING TO: port = " ++ port
   servDoCall (UseHaskellAPIClient.replicateFile aFile) ((read port) :: Int)
   broadcast aFile rs
